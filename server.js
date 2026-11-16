@@ -99,6 +99,16 @@ async function loadDb() {
     db.catalogVersion = 3;
   }
   if (db.catalogVersion < 4) applyImagesV4();
+  if (db.catalogVersion < 5) { // нови фотографии по прилики – најгоре во галеријата
+    const t = Date.now() + 1000;
+    const add = [['snesko-vo-raka', 'praznici', ''], ['novogodisna-kutija', 'praznici', 'Спакувани како подарок'],
+      ['novogodisen-set-sirok', 'praznici', ''], ['novogodisen-set', 'praznici', ''],
+      ['rodenden', 'rodenden', 'Роденденски колачиња'], ['svadba', 'svadba', 'Свадбени колачиња'],
+      ['proslavi-bebe', 'proslavi', 'Крштевка и бебешка забава'], ['sopstven-dizajn-mecinja', 'proslavi', 'Од цртеж до колаче']]
+      .map(([n, cat, cap], i) => ({ id: uid(), image: '/images/s/' + n + '.jpg', caption: cap, category: cat, createdAt: t - i }));
+    db.gallery = [...add, ...db.gallery];
+    db.catalogVersion = 5;
+  }
   save();
   await store.flush();
 }

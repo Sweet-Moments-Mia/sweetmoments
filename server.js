@@ -110,6 +110,26 @@ async function loadDb() {
     db.catalogVersion = 5;
   }
   if (db.catalogVersion < 6) applyDesignsV6();
+  if (db.catalogVersion < 7) { // Ѕвезда со мрвици + Ракавица (2 дизајни)
+    const img = n => '/images/c/' + n + '.jpg';
+    const own = p => String(p?.image || '').startsWith('/uploads/');
+    const star = db.products.find(p => p.name === 'Ѕвезда со мрвици');
+    if (star && !own(star)) star.image = img('dzvezda-so-mrvici');
+    const mit = db.products.find(p => p.name === 'Ракавица');
+    if (mit) {
+      if (!own(mit)) mit.image = img('rakavica-sarena');
+      if (!(mit.designs || []).length) mit.designs = [
+        { id: uid(), name: 'Шарена', image: img('rakavica-sarena') },
+        { id: uid(), name: 'Црвена', image: img('rakavica-crvena') }
+      ];
+      if (!mit.description) mit.description = 'Изберете дизајн.';
+    }
+    const occ = db.gallery.filter(g => g.image.startsWith('/images/s/')).map(g => g.createdAt);
+    const t = (occ.length ? Math.min(...occ) : Date.now()) - 0.5;
+    db.gallery.push(...['dzvezda-so-mrvici', 'rakavica-sarena', 'rakavica-crvena']
+      .map((n, i) => ({ id: uid(), image: img(n), caption: '', category: 'praznici', createdAt: t - i * 0.1 })));
+    db.catalogVersion = 7;
+  }
   save();
   await store.flush();
 }

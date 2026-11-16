@@ -63,14 +63,14 @@ const SM = (() => {
     } else c.push({ key: 'k' + Date.now() + Math.random(), type: 'package', id, qty: 1, cookies });
     setCart(c);
   }
-  // Попуст за сами избрани колачиња (исто како на серверот)
-  function discountFor(s, count) {
-    const tiers = (s.discounts || []).filter(t => t.min > 0 && t.pct > 0).sort((a, b) => b.min - a.min);
-    return (tiers.find(t => count >= t.min) || { pct: 0 }).pct;
+  // Попуст за ТОЧНО одреден број сами избрани колачиња, спакувани заедно (исто како на серверот)
+  const tiersOf = s => (s.discounts || []).filter(t => t.min > 0 && t.pct > 0).sort((a, b) => a.min - b.min);
+  function discountFor(s, count, packing) {
+    if (packing !== 'together') return 0;
+    return (tiersOf(s).find(t => t.min === count) || { pct: 0 }).pct;
   }
-  function nextDiscount(s, count) {
-    return (s.discounts || []).filter(t => t.min > count).sort((a, b) => a.min - b.min)[0];
-  }
+  function nextDiscount(s, count) { return tiersOf(s).find(t => t.min > count); }
+  function discountTier(s, count) { return tiersOf(s).find(t => t.min === count); }
   function updateCount() {
     const el = document.querySelector('.cart-count');
     if (!el) return;
@@ -240,5 +240,5 @@ const SM = (() => {
 
   const ready = load().then(d => { renderChrome(d); return d; });
 
-  return { load, ready, esc, money, getCart, setCart, addProduct, addPackage, toast, qtyControl, postJSON, postForm, lightbox, stars, socialButtons, socialIcons, safeUrl, successHtml, I, store, ingredientsHtml, allergens, discountFor, nextDiscount };
+  return { load, ready, esc, money, getCart, setCart, addProduct, addPackage, toast, qtyControl, postJSON, postForm, lightbox, stars, socialButtons, socialIcons, safeUrl, successHtml, I, store, ingredientsHtml, allergens, discountFor, nextDiscount, discountTier };
 })();

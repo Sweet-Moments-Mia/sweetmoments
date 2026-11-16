@@ -359,14 +359,14 @@
       <div class="card card-pad form"><p class="panel-title" style="margin:0">Нарачки</p>
         <div class="form-row"><label>Доплата за поединечно пакување <small>(по колаче)</small><input name="individualWrapPrice" type="number" min="0" value="${esc(s.individualWrapPrice)}"></label><label>Валута<input name="currency" value="${esc(s.currency)}"></label></div>
         <label>Белешка за цените <small>(се прикажува над колачињата)</small><input name="priceNote" value="${esc(s.priceNote || '')}"></label>
-        <p class="muted small" style="margin:0">Попуст кога купувачот сам ги избира колачињата (не важи за мешаните пакети):</p>
+        <p class="muted small" style="margin:0">Попуст кога купувачот сам избира ТОЧНО толку колачиња и се спакувани заедно во кутија (не важи за поединечно пакување и за мешаните пакети):</p>
         <div class="form-row">
-          <label>Од колку колачиња <small>(1. праг)</small><input name="disc1Min" type="number" min="0" value="${esc(s.discounts?.[0]?.min ?? '')}"></label>
-          <label>Попуст % <small>(1. праг)</small><input name="disc1Pct" type="number" min="0" max="90" value="${esc(s.discounts?.[0]?.pct ?? '')}"></label>
+          <label>Точно колку колачиња <small>(1. попуст)</small><input name="disc1Min" type="number" min="0" value="${esc(s.discounts?.[0]?.min ?? '')}"></label>
+          <label>Попуст % <small>(1. попуст)</small><input name="disc1Pct" type="number" min="0" max="90" value="${esc(s.discounts?.[0]?.pct ?? '')}"></label>
         </div>
         <div class="form-row">
-          <label>Од колку колачиња <small>(2. праг)</small><input name="disc2Min" type="number" min="0" value="${esc(s.discounts?.[1]?.min ?? '')}"></label>
-          <label>Попуст % <small>(2. праг)</small><input name="disc2Pct" type="number" min="0" max="90" value="${esc(s.discounts?.[1]?.pct ?? '')}"></label>
+          <label>Точно колку колачиња <small>(2. попуст)</small><input name="disc2Min" type="number" min="0" value="${esc(s.discounts?.[1]?.min ?? '')}"></label>
+          <label>Попуст % <small>(2. попуст)</small><input name="disc2Pct" type="number" min="0" max="90" value="${esc(s.discounts?.[1]?.pct ?? '')}"></label>
         </div>
       </div>
       <div class="card card-pad form"><p class="panel-title" style="margin:0">Лого</p>

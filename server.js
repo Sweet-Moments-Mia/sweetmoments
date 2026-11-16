@@ -91,6 +91,13 @@ async function loadDb() {
   // нови поставки за постоечка база
   if (db.settings.ingredients === undefined) db.settings.ingredients = DEFAULT_INGREDIENTS;
   if ((db.catalogVersion || 1) < 2) applyCatalogV2();
+  if (db.catalogVersion < 3) { // појаснет попуст + плаќање при преземање
+    Object.assign(db.settings, {
+      priceNote: 'Почетни цени. Попуст кога сами ќе изберете точно 6 колачиња (−10%) или точно 12 колачиња (−15%), спакувани заедно во кутија. Плаќањето е при преземање.',
+      deliveryInfo: 'Нарачки до 20 декември или до пополнување на местата. Плаќањето е при преземање. Испораката се наплаќа посебно – цената ја договараме по телефон.'
+    });
+    db.catalogVersion = 3;
+  }
   save();
   await store.flush();
 }
@@ -126,7 +133,7 @@ function applyCatalogV2() {
   Object.assign(db.settings, {
     announcement: 'Нарачки до 20 декември или до пополнување на местата',
     deliveryInfo: 'Нарачки до 20 декември или до пополнување на местата. Испораката се наплаќа посебно – цената ја договараме по телефон.',
-    priceNote: 'Почетни цени. Кога сами ги избирате колачињата: −10% од 6 колачиња, −15% од 12 колачиња.',
+    priceNote: 'Почетни цени.',
     discounts: [{ min: 6, pct: 10 }, { min: 12, pct: 15 }]
   });
   const now = Date.now();
@@ -283,10 +290,11 @@ function customerText(c) {
     c.date && `Потребно до: ${c.date}`, c.note && `Забелешка: ${c.note}`];
 }
 
-// Попуст кога купувачот сам ги избира колачињата (на пр. −10% од 6, −15% од 12)
-function discountFor(count) {
-  const tiers = (db.settings.discounts || []).filter(t => t.min > 0 && t.pct > 0).sort((a, b) => b.min - a.min);
-  return (tiers.find(t => count >= t.min) || { pct: 0 }).pct;
+// Попуст кога купувачот сам избира ТОЧНО одреден број колачиња (на пр. 6 → −10%, 12 → −15%)
+// и тие се пакуваат ЗАЕДНО во кутија. Поединечно пакување = без попуст.
+function discountFor(count, packing) {
+  if (packing !== 'together') return 0;
+  return ((db.settings.discounts || []).find(t => t.min > 0 && t.pct > 0 && t.min === count) || { pct: 0 }).pct;
 }
 
 // Нарачка од кошничка
@@ -331,7 +339,7 @@ app.post('/api/orders', rateLimit(10, 60 * 60 * 1000), (req, res) => {
         total += pk.price * qty; cookieCount += pk.count * qty;
       } else throw new Error('Невалидна ставка.');
     }
-    const discountPct = discountFor(pickedCount);
+    const discountPct = discountFor(pickedCount, packing);
     const discount = Math.round(pickedSubtotal * discountPct / 100);
     const wrapFee = packing === 'individual' ? cookieCount * num(db.settings.individualWrapPrice) : 0;
     const order = {

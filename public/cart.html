@@ -42,7 +42,7 @@
         </div>
         <label id="addrWrap" class="hidden">Адреса за достава<input name="address" maxlength="300" autocomplete="street-address"></label>
         <label>Забелешка <small>(посебни желби, алергии…)</small><textarea name="note" maxlength="2000"></textarea></label>
-        <div class="notice"><span data-i="phone"></span><span>По нарачката <b>ќе ве контактираме по телефон</b> за потврда, цена на достава и време на преземање. <span id="deliveryInfo"></span></span></div>
+        <div class="notice"><span data-i="phone"></span><span>По нарачката <b>ќе ве контактираме по телефон</b> за потврда, цена на достава и време на преземање. <b>Плаќањето е при преземање.</b> <span id="deliveryInfo"></span></span></div>
         <label class="check"><input type="checkbox" name="consent" required><span>Се согласувам моите податоци да се користат за обработка на нарачката според <a href="/privacy.html" target="_blank">Политиката за приватност</a> и ги прифаќам <a href="/terms.html" target="_blank">Условите за нарачка</a>.</span></label>
         <button class="btn btn-block" type="submit" id="submitBtn">Испрати нарачка</button>
       </form>
@@ -126,19 +126,24 @@ SM.ready.then(d => {
       row.querySelector('.right').append(q, rm);
       lines.appendChild(row);
     }
-    const individual = document.querySelector('[name=packing]:checked').value === 'individual';
+    const packing = document.querySelector('[name=packing]:checked').value;
+    const individual = packing === 'individual';
     const fee = individual ? cookies * wrapPrice : 0;
-    const pct = SM.discountFor(s, picked);
+    const pct = SM.discountFor(s, picked, packing);
     const disc = Math.round(pickedSub * pct / 100);
     const next = SM.nextDiscount(s, picked);
+    const tier = SM.discountTier(s, picked);
+    let hint = '';
+    if (tier && individual) hint = `Со <b>${picked}</b> избрани колачиња имате <b>−${tier.pct}%</b> попуст, но само ако се <b>спакувани заедно во кутија</b>.`;
+    else if (!tier && next && picked > 0) hint = `Изберете точно <b>${next.min}</b> колачиња (уште ${next.min - picked}) спакувани заедно во кутија и добивате <b>−${next.pct}%</b> попуст.`;
     document.getElementById('totals').innerHTML = `
       <div><span class="muted">Број на колачиња</span><span>${cookies}</span></div>
       <div><span class="muted">Меѓузбир</span><span>${money(sub)}</span></div>
-      ${disc ? `<div style="color:var(--ok,#2f7d4f)"><span>Попуст ${pct}% (сами избрани колачиња)</span><span>−${money(disc)}</span></div>` : ''}
+      ${disc ? `<div style="color:#2f7d4f"><span>Попуст ${pct}% (${picked} избрани колачиња во кутија)</span><span>−${money(disc)}</span></div>` : ''}
       ${fee ? `<div><span class="muted">Поединечно пакување (${cookies} × ${money(wrapPrice)})</span><span>${money(fee)}</span></div>` : ''}
       <div class="grand"><span>Вкупно</span><span>${money(sub - disc + fee)}</span></div>
-      ${next && picked > 0 ? `<div class="notice" style="margin-top:8px">${I.gift}<span>Додадете уште <b>${next.min - picked}</b> ${next.min - picked === 1 ? 'колаче' : 'колачиња'} по избор и добивате <b>−${next.pct}%</b> попуст.</span></div>` : ''}
-      <div class="muted small">Испораката се наплаќа посебно – цената ја договараме по телефон.</div>`;
+      ${hint ? `<div class="notice" style="margin-top:8px">${I.gift}<span>${hint}</span></div>` : ''}
+      <div class="muted small">Плаќањето е при преземање. Испораката се наплаќа посебно – цената ја договараме по телефон.</div>`;
   }
   draw();
 

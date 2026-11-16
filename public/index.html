@@ -61,7 +61,7 @@
 
 <section class="section band">
   <div class="container">
-    <div class="section-title reveal"><span class="eyebrow">Омилени</span><h2>Нашите колачиња</h2><p>Секое колаче можете да го нарачате поединечно</p></div>
+    <div class="section-title reveal"><span class="eyebrow">Омилени</span><h2>Нашите колачиња</h2><p id="homePriceNote">Секое колаче можете да го нарачате поединечно</p></div>
     <div class="grid grid-products" id="featured"></div>
     <p class="center" style="margin-top:44px"><a href="/shop.html" class="btn btn-outline">Види ги сите колачиња</a></p>
   </div>
@@ -69,7 +69,7 @@
 
 <section class="section">
   <div class="container">
-    <div class="section-title reveal"><span class="eyebrow">Пакети</span><h2>Изберете пакет</h2><p>Пополнете го пакетот со колачиња по ваш избор</p></div>
+    <div class="section-title reveal"><span class="eyebrow">Пакети</span><h2>Мешани пакети</h2><p>Разновиден новогодишен микс – дизајните ги бираме ние</p></div>
     <div class="grid grid-packages" id="packages"></div>
   </div>
 </section>
@@ -139,6 +139,7 @@ SM.ready.then(d => {
   document.getElementById('sloganMk').textContent = s.sloganMk;
   document.getElementById('sloganEn').textContent = s.sloganEn;
   document.getElementById('heroText').textContent = s.heroText;
+  if (s.priceNote) document.getElementById('homePriceNote').textContent = 'Секое колаче можете да го нарачате поединечно. ' + s.priceNote;
   const ing = SM.ingredientsHtml(s);
   if (ing) document.getElementById('ingredients').innerHTML = ing; else document.getElementById('ingSection').classList.add('hidden');
   if (s.announcement) { document.getElementById('deadlineText').textContent = s.announcement; document.getElementById('deadline').classList.remove('hidden'); }

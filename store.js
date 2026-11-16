@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const COLLECTIONS = ['categories', 'products', 'packages', 'gallery', 'reviews', 'orders', 'messages'];
-const META = ['settings', 'admin', 'orderSeq'];
+const META = ['settings', 'admin', 'orderSeq', 'catalogVersion'];
 
 // ---------------- Локален режим ----------------
 function fileStore(root) {

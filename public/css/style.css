@@ -130,6 +130,17 @@ input[type=checkbox], input[type=radio] { width: 18px; height: 18px; accent-colo
 .product-body { padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .product-body h3 { margin: 0; font-size: 1.55rem; }
 .product-desc { color: var(--muted); font-size: .88rem; margin: 0; }
+.product-media { position: relative; }
+.design-count { position: absolute; top: 12px; left: 12px; background: rgba(255,252,249,.94); color: var(--wine-dark); font-size: .74rem; font-weight: 800; padding: 5px 10px; border-radius: 999px; box-shadow: var(--shadow-sm); }
+.design-name { font-size: .84rem; color: var(--muted); }
+.design-name b { color: var(--ink); }
+.designs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.design { width: 38px; height: 38px; border-radius: 50%; padding: 2px; border: 2px solid transparent; background: var(--cream); cursor: pointer; overflow: hidden; transition: border-color .15s, transform .15s; }
+.design img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.design:hover { transform: scale(1.08); }
+.design.on { border-color: var(--wine); }
+.price-note { display: flex; gap: 10px; align-items: flex-start; justify-content: center; text-align: center; color: var(--wine-dark); font-weight: 600; font-size: .9rem; margin: -18px auto 34px; max-width: 720px; }
+.price-note .ico { color: var(--gold); margin-top: 2px; }
 .product-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; }
 .price { font-weight: 800; color: var(--wine); font-size: 1.08rem; }
 .size { color: var(--muted); font-size: .8rem; display: inline-flex; gap: 6px; align-items: center; background: var(--cream); padding: 4px 10px; border-radius: 999px; }

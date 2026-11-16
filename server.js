@@ -90,8 +90,52 @@ async function loadDb() {
   db.admin ||= { email: '', hash: '', salt: '' };
   // нови поставки за постоечка база
   if (db.settings.ingredients === undefined) db.settings.ingredients = DEFAULT_INGREDIENTS;
+  if ((db.catalogVersion || 1) < 2) applyCatalogV2();
   save();
   await store.flush();
+}
+// Ценовник „Новогодишна колекција“ (ноември 2026) – еднократно ги заменува привремените колачиња и пакети
+function applyCatalogV2() {
+  const C = '/images/c/';
+  const d = (name, img) => ({ id: uid(), name, image: C + img + '.jpg' });
+  const p = (name, size, price, image, description = '', designs = []) =>
+    ({ id: uid(), name, size, price, image, category: 'praznici', description, active: true, designs });
+  db.products = [
+    p('Човече', '11 см', 50, '/images/own-6.jpg', 'Медено човече со рачно украсување.'),
+    p('Круг со маршмелоу', '7 см', 50, C + 'marshmelou-stopen-snesko.jpg', '„Стопен снешко“ со вистински маршмелоу.'),
+    p('Правоаголник', '7×8 см', 50, '/images/own-7.jpg', 'Сите дизајни – напишете го посакуваниот дизајн во забелешката.'),
+    p('Ѕвезда со мрвици', '8 см', 40, '/images/own-8.jpg'),
+    p('Ирвас', '9 см', 40, '/images/own-1.jpg'),
+    p('Круг', '7 см', 40, C + 'krug-snegulka.jpg', 'Изберете дизајн.', [
+      d('Снегулка', 'krug-snegulka'), d('Новогодишни светилки', 'krug-svetilki'), d('Дедо Мраз', 'krug-dedo-mraz'),
+      d('Снешко', 'krug-snesko'), d('Медено лице', 'krug-medeno-lice'), d('Бонбона', 'krug-bonbona'),
+      d('Пингвин', 'krug-pingvin'), d('Зелено лице', 'krug-zeleno-lice'),
+      d('Снешко со сини слушалки', 'snesko-sini-slusalki'), d('Снешко со розе трепки', 'snesko-roze-trepki'),
+      d('Снешко со црвени слушалки', 'snesko-crveni-slusalki'), d('Снешко – зелени слушалки', 'snesko-zeleni-zatvoreni-oci'),
+      d('Снешко со портокалови слушалки', 'snesko-portokalovi-slusalki'), d('Снешко – розе насмевка', 'snesko-roze-nasmevka'),
+      d('Снешко – зелени точки', 'snesko-zeleni-tocki')
+    ]),
+    p('Квадрат', '7 см', 40, C + 'kvadrat-irvas.jpg', 'Сите дизајни – напишете го посакуваниот дизајн во забелешката.'),
+    p('Снешко', '8 см', 30, '/images/own-1.jpg'),
+    p('Елка', '8 см', 30, C + 'elka-zelena.jpg'),
+    p('Ракавица', '6 / 4,5 см', 30, '/images/own-4.jpg')
+  ];
+  const mix = (count, price) => ({ id: uid(), name: `Мешан пакет · ${count} колачиња`, count, price, active: true, choose: false,
+    description: 'Дизајните ги бираме ние – разновиден новогодишен микс.' });
+  db.packages = [mix(6, 220), mix(9, 320), mix(12, 420)];
+  Object.assign(db.settings, {
+    announcement: 'Нарачки до 20 декември или до пополнување на местата',
+    deliveryInfo: 'Нарачки до 20 декември или до пополнување на местата. Испораката се наплаќа посебно – цената ја договараме по телефон.',
+    priceNote: 'Почетни цени. Кога сами ги избирате колачињата: −10% од 6 колачиња, −15% од 12 колачиња.',
+    discounts: [{ min: 6, pct: 10 }, { min: 12, pct: 15 }]
+  });
+  const now = Date.now();
+  const newGallery = ['krug-snegulka', 'krug-svetilki', 'krug-dedo-mraz', 'krug-snesko', 'krug-medeno-lice', 'krug-bonbona',
+    'marshmelou-stopen-snesko', 'kvadrat-irvas', 'krug-pingvin', 'snesko-roze-trepki', 'snesko-crveni-slusalki', 'snesko-portokalovi-slusalki']
+    .map((n, i) => ({ id: uid(), image: C + n + '.jpg', caption: '', category: 'praznici', createdAt: now + i }));
+  db.gallery = [...newGallery, ...db.gallery];
+  db.catalogVersion = 2;
+  console.log('Каталогот е ажуриран според ценовникот (верзија 2).');
 }
 function nextNumber() { db.orderSeq = (db.orderSeq || 1000) + 1; return db.orderSeq; }
 function save() { return store.save(db); }
@@ -239,6 +283,12 @@ function customerText(c) {
     c.date && `Потребно до: ${c.date}`, c.note && `Забелешка: ${c.note}`];
 }
 
+// Попуст кога купувачот сам ги избира колачињата (на пр. −10% од 6, −15% од 12)
+function discountFor(count) {
+  const tiers = (db.settings.discounts || []).filter(t => t.min > 0 && t.pct > 0).sort((a, b) => b.min - a.min);
+  return (tiers.find(t => count >= t.min) || { pct: 0 }).pct;
+}
+
 // Нарачка од кошничка
 app.post('/api/orders', rateLimit(10, 60 * 60 * 1000), (req, res) => {
   try {
@@ -249,37 +299,51 @@ app.post('/api/orders', rateLimit(10, 60 * 60 * 1000), (req, res) => {
     if (!items.length) throw new Error('Кошничката е празна.');
     const lines = [];
     let total = 0, cookieCount = 0;
+    let pickedSubtotal = 0, pickedCount = 0; // колачиња што купувачот сам ги избрал (за попуст)
     for (const it of items) {
       if (it.type === 'product') {
         const p = db.products.find(x => x.id === it.id && x.active);
         const qty = Math.min(500, Math.floor(num(it.qty)));
         if (!p || qty < 1) throw new Error('Невалиден производ во кошничката.');
-        lines.push({ type: 'product', name: p.name, size: p.size, qty, unit: p.price, sum: p.price * qty });
+        let design = '';
+        if (p.designs?.length) {
+          design = (p.designs.find(d => d.name === it.design) || {}).name || '';
+          if (!design) throw new Error(`Изберете дизајн за „${p.name}“.`);
+        }
+        lines.push({ type: 'product', name: p.name, design, size: p.size, qty, unit: p.price, sum: p.price * qty });
         total += p.price * qty; cookieCount += qty;
+        pickedSubtotal += p.price * qty; pickedCount += qty;
       } else if (it.type === 'package') {
         const pk = db.packages.find(x => x.id === it.id && x.active);
+        if (!pk) throw new Error('Невалиден пакет.');
         const qty = Math.min(100, Math.max(1, Math.floor(num(it.qty, 1))));
-        const cookies = Array.isArray(it.cookies) ? it.cookies : [];
-        if (!pk || cookies.length !== pk.count) throw new Error('Пакетот не е целосно пополнет.');
-        const names = cookies.map(id => {
-          const p = db.products.find(x => x.id === id);
-          if (!p) throw new Error('Невалидно колаче во пакетот.');
-          return p.name;
-        });
-        lines.push({ type: 'package', name: pk.name, qty, unit: pk.price, sum: pk.price * qty, cookies: names });
+        let names;
+        if (pk.choose !== false) { // купувачот сам ги бира колачињата во пакетот
+          const cookies = Array.isArray(it.cookies) ? it.cookies : [];
+          if (cookies.length !== pk.count) throw new Error('Пакетот не е целосно пополнет.');
+          names = cookies.map(id => {
+            const p = db.products.find(x => x.id === id);
+            if (!p) throw new Error('Невалидно колаче во пакетот.');
+            return p.name;
+          });
+        }
+        lines.push({ type: 'package', name: pk.name, qty, unit: pk.price, sum: pk.price * qty, cookies: names, mixed: pk.choose === false });
         total += pk.price * qty; cookieCount += pk.count * qty;
       } else throw new Error('Невалидна ставка.');
     }
+    const discountPct = discountFor(pickedCount);
+    const discount = Math.round(pickedSubtotal * discountPct / 100);
     const wrapFee = packing === 'individual' ? cookieCount * num(db.settings.individualWrapPrice) : 0;
     const order = {
       id: uid(), number: nextNumber(), kind: 'cart', status: 'нова',
-      createdAt: Date.now(), customer, packing, lines, cookieCount, wrapFee, total: total + wrapFee
+      createdAt: Date.now(), customer, packing, lines, cookieCount, discountPct, discount, wrapFee, total: total - discount + wrapFee
     };
     db.orders.push(order); save();
     notify(`Нова нарачка #${order.number} – ${order.total} ${db.settings.currency}`, [
       `НОВА НАРАЧКА #${order.number}`, '', ...customerText(customer), '',
-      ...lines.map(l => `• ${l.name} × ${l.qty} = ${l.sum}${l.cookies ? `\n   (${l.cookies.join(', ')})` : ''}`),
+      ...lines.map(l => `• ${l.name}${l.design ? ' – ' + l.design : ''} × ${l.qty} = ${l.sum}${l.cookies ? `\n   (${l.cookies.join(', ')})` : ''}${l.mixed ? ' (мешан – дизајните ги бираме ние)' : ''}`),
       `Пакување: ${packing === 'individual' ? 'Секое посебно' : 'Заедно во кутија'}`,
+      discount && `Попуст ${discountPct}%: −${discount}`,
       wrapFee && `Доплата за пакување: ${wrapFee}`, `ВКУПНО: ${order.total} ${db.settings.currency}`
     ]);
     res.json({ ok: true, number: order.number, total: order.total });
@@ -405,10 +469,14 @@ app.put('/api/admin/settings', upload.single('logo'), (req, res) => {
   const b = req.body || {};
   const s = db.settings;
   for (const k of ['brand', 'sloganMk', 'sloganEn', 'heroText', 'about', 'phone', 'email', 'address',
-    'instagram', 'facebook', 'deliveryInfo', 'announcement', 'currency', 'orderEmail', 'ingredients']) {
+    'instagram', 'facebook', 'deliveryInfo', 'announcement', 'currency', 'orderEmail', 'ingredients', 'priceNote']) {
     if (k in b) s[k] = str(b[k], 3000);
   }
   if ('individualWrapPrice' in b) s.individualWrapPrice = num(b.individualWrapPrice);
+  if ('disc1Min' in b) {
+    s.discounts = [[b.disc1Min, b.disc1Pct], [b.disc2Min, b.disc2Pct]]
+      .map(([m, p]) => ({ min: Math.floor(num(m)), pct: Math.min(90, num(p)) })).filter(t => t.min > 0 && t.pct > 0);
+  }
   if (req.file) { removeUpload(s.logo); s.logo = fileUrl(req.file); }
   if (bool(b.removeLogo)) { removeUpload(s.logo); s.logo = ''; }
   save(); res.json(s);
@@ -437,15 +505,42 @@ app.put('/api/admin/products/:id', upload.single('image'), (req, res) => {
 });
 app.delete('/api/admin/products/:id', (req, res) => {
   const p = db.products.find(x => x.id === req.params.id);
-  if (p) removeUpload(p.image);
+  if (p) { removeUpload(p.image); (p.designs || []).forEach(d => removeUpload(d.image)); }
   db.products = db.products.filter(x => x.id !== req.params.id); save(); res.json({ ok: true });
+});
+
+// Дизајни на колаче (на пр. „Круг – сите дизајни“: снегулка, снешко…)
+app.post('/api/admin/products/:id/designs', upload.single('image'), (req, res) => {
+  const p = db.products.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Не постои.' });
+  const name = str(req.body.name, 80);
+  if (!name) { removeUpload(fileUrl(req.file)); return res.status(400).json({ error: 'Внесете име на дизајнот.' }); }
+  if ((p.designs || []).some(d => d.name === name)) { removeUpload(fileUrl(req.file)); return res.status(400).json({ error: 'Дизајн со тоа име веќе постои.' }); }
+  const d = { id: uid(), name, image: fileUrl(req.file) };
+  (p.designs ||= []).push(d); save(); res.json(d);
+});
+app.put('/api/admin/products/:id/designs/:did', upload.single('image'), (req, res) => {
+  const p = db.products.find(x => x.id === req.params.id);
+  const d = p?.designs?.find(x => x.id === req.params.did);
+  if (!d) return res.status(404).json({ error: 'Не постои.' });
+  const name = str(req.body.name, 80);
+  if (name) d.name = name;
+  if (req.file) { removeUpload(d.image); d.image = fileUrl(req.file); }
+  save(); res.json(d);
+});
+app.delete('/api/admin/products/:id/designs/:did', (req, res) => {
+  const p = db.products.find(x => x.id === req.params.id);
+  const d = p?.designs?.find(x => x.id === req.params.did);
+  if (d) { removeUpload(d.image); p.designs = p.designs.filter(x => x !== d); save(); }
+  res.json({ ok: true });
 });
 
 // Пакети
 app.post('/api/admin/packages', (req, res) => {
   const b = req.body;
   const p = { id: uid(), name: str(b.name, 100), count: Math.max(1, Math.floor(num(b.count, 1))), price: num(b.price),
-    description: str(b.description, 1000), active: b.active === undefined ? true : bool(b.active) };
+    description: str(b.description, 1000), active: b.active === undefined ? true : bool(b.active),
+    choose: b.choose === undefined ? false : bool(b.choose) };
   if (!p.name) return res.status(400).json({ error: 'Внесете име.' });
   db.packages.push(p); save(); res.json(p);
 });
@@ -458,6 +553,7 @@ app.put('/api/admin/packages/:id', (req, res) => {
   if ('price' in b) p.price = num(b.price);
   if ('description' in b) p.description = str(b.description, 1000);
   if ('active' in b) p.active = bool(b.active);
+  if ('choose' in b) p.choose = bool(b.choose);
   save(); res.json(p);
 });
 app.delete('/api/admin/packages/:id', (req, res) => {

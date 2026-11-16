@@ -146,7 +146,8 @@
              <p style="margin:0;white-space:pre-wrap">${esc(o.design)}</p>
              ${o.cookieText ? `<p style="margin:8px 0 0">Текст на колачињата: <b>${esc(o.cookieText)}</b></p>` : ''}</div>
              ${o.images?.length ? `<div class="order-imgs">${o.images.map(i => `<img src="${esc(i)}" alt="">`).join('')}</div>` : ''}`
-          : `<table class="lines">${o.lines.map(l => `<tr><td>${esc(l.name)}${l.size ? ` <span class="muted">(${esc(l.size)})</span>` : ''}${l.cookies ? `<br><span class="muted small">${esc(tally(l.cookies))}</span>` : ''}</td><td style="white-space:nowrap">× ${l.qty}</td><td style="text-align:right;white-space:nowrap">${money(l.sum)}</td></tr>`).join('')}
+          : `<table class="lines">${o.lines.map(l => `<tr><td>${esc(l.name)}${l.design ? ` – <b>${esc(l.design)}</b>` : ''}${l.size ? ` <span class="muted">(${esc(l.size)})</span>` : ''}${l.cookies ? `<br><span class="muted small">${esc(tally(l.cookies))}</span>` : ''}${l.mixed ? '<br><span class="muted small">Мешан – дизајните ги бираш ти</span>' : ''}</td><td style="white-space:nowrap">× ${l.qty}</td><td style="text-align:right;white-space:nowrap">${money(l.sum)}</td></tr>`).join('')}
+             ${o.discount ? `<tr><td>Попуст ${o.discountPct}% (сами избрани)</td><td></td><td style="text-align:right">−${money(o.discount)}</td></tr>` : ''}
              ${o.wrapFee ? `<tr><td>Поединечно пакување</td><td></td><td style="text-align:right">${money(o.wrapFee)}</td></tr>` : ''}
              <tr><td><b>Вкупно</b> <span class="muted small">(${o.cookieCount} колачиња)</span></td><td></td><td style="text-align:right"><b>${money(o.total)}</b></td></tr></table>`;
         const card = h(`<div class="card row-card">
@@ -196,7 +197,35 @@
       </div>
       <div class="order-head"><label class="toggle"><input type="checkbox" name="active" ${p.active ? 'checked' : ''}> Видливо на страната</label>
         <div class="actions">${isNew ? '' : '<button type="button" class="btn btn-sm btn-ghost del danger">Избриши</button>'}<button class="btn btn-sm">${isNew ? 'Додади колаче' : 'Зачувај'}</button></div></div>
+      ${isNew ? '' : `<details class="designs-admin" ${(p.designs || []).length ? 'open' : ''}>
+        <summary><b>Дизајни</b> <span class="muted small">(${(p.designs || []).length}) – ако додадете дизајни, купувачот бира еден при нарачка</span></summary>
+        <div class="d-list"></div>
+        <div class="d-add"><input class="d-name" placeholder="Име на нов дизајн (на пр. Снегулка)"><input class="d-file" type="file" accept="image/*"><button type="button" class="btn btn-sm btn-outline d-btn">Додади дизајн</button></div>
+      </details>`}
     </form>`);
+    if (!isNew) {
+      const list = el.querySelector('.d-list');
+      for (const d of p.designs || []) {
+        const row = h(`<div class="d-row">${d.image ? `<img src="${esc(d.image)}" alt="">` : '<span class="d-ph"></span>'}<input value="${esc(d.name)}"><label class="btn btn-sm btn-ghost" style="cursor:pointer">Слика<input type="file" accept="image/*" class="hidden"></label><button type="button" class="btn btn-sm btn-ghost save">Зачувај</button><button type="button" class="btn btn-sm btn-ghost danger del">Избриши</button></div>`);
+        const f = row.querySelector('input[type=file]');
+        row.querySelector('.save').onclick = act(async () => {
+          const fd = new FormData(); fd.set('name', row.querySelector('input:not([type])').value);
+          if (f.files[0]) fd.set('image', f.files[0]);
+          await api('PUT', `/api/admin/products/${p.id}/designs/${d.id}`, fd); toast('Дизајнот е зачуван'); await reload();
+        });
+        f.onchange = () => row.querySelector('.save').click();
+        row.querySelector('.del').onclick = act(async () => {
+          if (!confirm(`Да се избрише дизајнот „${d.name}“?`)) return;
+          await api('DELETE', `/api/admin/products/${p.id}/designs/${d.id}`); await reload();
+        });
+        list.appendChild(row);
+      }
+      el.querySelector('.d-btn').onclick = act(async () => {
+        const fd = new FormData(); fd.set('name', el.querySelector('.d-name').value);
+        const df = el.querySelector('.d-file').files[0]; if (df) fd.set('image', df);
+        await api('POST', `/api/admin/products/${p.id}/designs`, fd); toast('Дизајнот е додаден'); await reload();
+      });
+    }
     const file = el.querySelector('[name=image]');
     file.onchange = () => { const f = file.files[0]; if (f) el.querySelector('.thumb').outerHTML = `<img class="thumb" src="${URL.createObjectURL(f)}">`; };
     el.onsubmit = act(async e => {
@@ -223,7 +252,7 @@
   // ---------- Пакети ----------
   function packageForm(p) {
     const isNew = !p;
-    p = p || { name: '', count: 6, price: '', description: '', active: true };
+    p = p || { name: '', count: 6, price: '', description: '', active: true, choose: false };
     const el = h(`<form class="card row-card">
       ${isNew ? '<p class="panel-title">Нов пакет</p>' : ''}
       <div class="fields">
@@ -232,12 +261,13 @@
         <label>Цена (${esc(D.settings.currency)})<input name="price" type="number" min="0" value="${esc(p.price)}" required></label>
         <label class="wide">Опис<input name="description" value="${esc(p.description)}"></label>
       </div>
-      <div class="order-head"><label class="toggle"><input type="checkbox" name="active" ${p.active ? 'checked' : ''}> Видливо на страната</label>
+      <div class="order-head"><div class="actions"><label class="toggle"><input type="checkbox" name="active" ${p.active ? 'checked' : ''}> Видливо на страната</label>
+        <label class="toggle"><input type="checkbox" name="choose" ${p.choose !== false ? 'checked' : ''}> Купувачот сам ги бира колачињата</label></div>
         <div class="actions">${isNew ? '' : '<button type="button" class="btn btn-sm btn-ghost del danger">Избриши</button>'}<button class="btn btn-sm">${isNew ? 'Додади пакет' : 'Зачувај'}</button></div></div>
     </form>`);
     el.onsubmit = act(async e => {
       e.preventDefault();
-      const body = Object.fromEntries(new FormData(el)); body.active = el.active.checked;
+      const body = Object.fromEntries(new FormData(el)); body.active = el.active.checked; body.choose = el.choose.checked;
       if (isNew) await api('POST', '/api/admin/packages', body); else await api('PUT', `/api/admin/packages/${p.id}`, body);
       toast('Зачувано'); await reload();
     });
@@ -328,6 +358,16 @@
       </div>
       <div class="card card-pad form"><p class="panel-title" style="margin:0">Нарачки</p>
         <div class="form-row"><label>Доплата за поединечно пакување <small>(по колаче)</small><input name="individualWrapPrice" type="number" min="0" value="${esc(s.individualWrapPrice)}"></label><label>Валута<input name="currency" value="${esc(s.currency)}"></label></div>
+        <label>Белешка за цените <small>(се прикажува над колачињата)</small><input name="priceNote" value="${esc(s.priceNote || '')}"></label>
+        <p class="muted small" style="margin:0">Попуст кога купувачот сам ги избира колачињата (не важи за мешаните пакети):</p>
+        <div class="form-row">
+          <label>Од колку колачиња <small>(1. праг)</small><input name="disc1Min" type="number" min="0" value="${esc(s.discounts?.[0]?.min ?? '')}"></label>
+          <label>Попуст % <small>(1. праг)</small><input name="disc1Pct" type="number" min="0" max="90" value="${esc(s.discounts?.[0]?.pct ?? '')}"></label>
+        </div>
+        <div class="form-row">
+          <label>Од колку колачиња <small>(2. праг)</small><input name="disc2Min" type="number" min="0" value="${esc(s.discounts?.[1]?.min ?? '')}"></label>
+          <label>Попуст % <small>(2. праг)</small><input name="disc2Pct" type="number" min="0" max="90" value="${esc(s.discounts?.[1]?.pct ?? '')}"></label>
+        </div>
       </div>
       <div class="card card-pad form"><p class="panel-title" style="margin:0">Лого</p>
         <div class="actions"><img src="${esc(s.logo || '/images/logo.svg')}" style="height:70px;background:#fff;border-radius:10px;padding:8px;border:1px solid var(--line)" alt="">

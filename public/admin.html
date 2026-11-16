@@ -81,6 +81,15 @@
   .gal-admin img { aspect-ratio: 1; object-fit: cover; width: 100%; }
   .gal-admin .p { padding: 12px; display: grid; gap: 8px; }
   .gal-admin input, .gal-admin select { padding: 9px 11px; font-size: .86rem; }
+  .designs-admin { border-top: 1px solid var(--line); padding-top: 12px; }
+  .designs-admin summary { cursor: pointer; }
+  .d-list { display: grid; gap: 8px; margin: 12px 0; }
+  .d-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .d-row img, .d-ph { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--cream-2); flex: none; }
+  .d-row input:not([type]) { flex: 1; min-width: 160px; padding: 9px 12px; }
+  .d-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .d-add .d-name { flex: 1; min-width: 200px; padding: 9px 12px; }
+  .d-add .d-file { width: auto; padding: 7px; }
   .empty-state { padding: 50px 20px; text-align: center; color: var(--muted); }
   .danger { color: #a1271d !important; }
   @media (max-width: 560px) { .edit-grid { grid-template-columns: 1fr; } }

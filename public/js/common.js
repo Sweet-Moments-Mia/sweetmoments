@@ -49,16 +49,27 @@ const SM = (() => {
   // ---------- Кошничка ----------
   const getCart = () => store.get('sm_cart', []);
   function setCart(c) { store.set('sm_cart', c); updateCount(); }
-  function addProduct(id, qty = 1) {
+  function addProduct(id, qty = 1, design = '') {
     const c = getCart();
-    const ex = c.find(i => i.type === 'product' && i.id === id);
-    if (ex) ex.qty += qty; else c.push({ key: 'p' + Date.now() + Math.random(), type: 'product', id, qty });
+    const ex = c.find(i => i.type === 'product' && i.id === id && (i.design || '') === design);
+    if (ex) ex.qty += qty; else c.push({ key: 'p' + Date.now() + Math.random(), type: 'product', id, qty, design });
     setCart(c);
   }
   function addPackage(id, cookies) {
     const c = getCart();
-    c.push({ key: 'k' + Date.now() + Math.random(), type: 'package', id, qty: 1, cookies });
+    if (!cookies) { // мешан пакет – дизајните ги бира продавачот
+      const ex = c.find(i => i.type === 'package' && i.id === id && !i.cookies);
+      if (ex) ex.qty += 1; else c.push({ key: 'k' + Date.now() + Math.random(), type: 'package', id, qty: 1 });
+    } else c.push({ key: 'k' + Date.now() + Math.random(), type: 'package', id, qty: 1, cookies });
     setCart(c);
+  }
+  // Попуст за сами избрани колачиња (исто како на серверот)
+  function discountFor(s, count) {
+    const tiers = (s.discounts || []).filter(t => t.min > 0 && t.pct > 0).sort((a, b) => b.min - a.min);
+    return (tiers.find(t => count >= t.min) || { pct: 0 }).pct;
+  }
+  function nextDiscount(s, count) {
+    return (s.discounts || []).filter(t => t.min > count).sort((a, b) => a.min - b.min)[0];
   }
   function updateCount() {
     const el = document.querySelector('.cart-count');
@@ -229,5 +240,5 @@ const SM = (() => {
 
   const ready = load().then(d => { renderChrome(d); return d; });
 
-  return { load, ready, esc, money, getCart, setCart, addProduct, addPackage, toast, qtyControl, postJSON, postForm, lightbox, stars, socialButtons, socialIcons, safeUrl, successHtml, I, store, ingredientsHtml, allergens };
+  return { load, ready, esc, money, getCart, setCart, addProduct, addPackage, toast, qtyControl, postJSON, postForm, lightbox, stars, socialButtons, socialIcons, safeUrl, successHtml, I, store, ingredientsHtml, allergens, discountFor, nextDiscount };
 })();

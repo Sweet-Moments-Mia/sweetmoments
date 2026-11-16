@@ -6,22 +6,36 @@ const Shop = (() => {
     container.innerHTML = '';
     if (!products.length) { container.innerHTML = '<p class="center muted" style="grid-column:1/-1">Нема колачиња во оваа категорија.</p>'; return; }
     for (const p of products) {
+      const designs = (p.designs || []).filter(d => d.name);
+      let design = designs[0] || null;
       const card = document.createElement('article');
       card.className = 'card product';
       card.innerHTML = `
-        <div class="product-media">${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">` : ''}</div>
+        <div class="product-media">${(design?.image || p.image) ? `<img src="${esc(design?.image || p.image)}" alt="${esc(p.name)}" loading="lazy">` : ''}${designs.length > 1 ? `<span class="design-count">${designs.length} дизајни</span>` : ''}</div>
         <div class="product-body">
           <h3>${esc(p.name)}</h3>
-          ${p.description ? `<p class="product-desc">${esc(p.description)}</p>` : ''}
+          ${designs.length ? `<div class="design-name">Дизајн: <b>${esc(design.name)}</b></div><div class="designs" role="listbox" aria-label="Изберете дизајн">${designs.map((d, i) =>
+            `<button type="button" class="design${i === 0 ? ' on' : ''}" data-i="${i}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${d.image ? `<img src="${esc(d.image)}" alt="" loading="lazy">` : esc(d.name[0])}</button>`).join('')}</div>`
+            : (p.description ? `<p class="product-desc">${esc(p.description)}</p>` : '')}
           <div class="product-meta"><span class="price">${money(p.price)}</span>${p.size ? `<span class="size">${esc(p.size)}</span>` : ''}</div>
           <div class="product-actions"></div>
         </div>`;
+      const media = card.querySelector('.product-media');
+      card.querySelectorAll('.design').forEach(b => b.onclick = () => {
+        design = designs[+b.dataset.i];
+        card.querySelectorAll('.design').forEach(x => x.classList.toggle('on', x === b));
+        card.querySelector('.design-name b').textContent = design.name;
+        const img = media.querySelector('img'); if (img && design.image) img.src = design.image;
+      });
       const q = SM.qtyControl(1, 1, 500);
       const btn = document.createElement('button');
       btn.className = 'btn btn-sm'; btn.innerHTML = `${I.cart} Додади`;
-      btn.onclick = () => { SM.addProduct(p.id, q.get()); SM.toast(`${p.name} × ${q.get()} е додадено во кошничката`); };
+      btn.onclick = () => {
+        SM.addProduct(p.id, q.get(), design?.name || '');
+        SM.toast(`${p.name}${design ? ' – ' + design.name : ''} × ${q.get()} е додадено во кошничката`);
+      };
       card.querySelector('.product-actions').append(q, btn);
-      if (p.image) card.querySelector('.product-media').onclick = () => SM.lightbox(p.image);
+      media.onclick = () => { const src = media.querySelector('img')?.src; if (src) SM.lightbox(src); };
       container.appendChild(card);
     }
   }
@@ -36,12 +50,15 @@ const Shop = (() => {
         ${i === featuredIdx ? '<span class="tag">Најбаран</span>' : ''}
         <h3>${esc(pk.name)}</h3>
         <div class="count">${pk.count}</div>
-        <div class="count-label">колачиња по избор</div>
+        <div class="count-label">${pk.choose === false ? 'колачиња · мешан избор' : 'колачиња по избор'}</div>
         ${pk.description ? `<p class="desc">${esc(pk.description)}</p>` : ''}
         <div class="price">${money(pk.price)}</div>
         <div class="per">≈ ${money(Math.round(pk.price / pk.count))} по колаче</div>
-        <button class="btn ${i === featuredIdx ? '' : 'btn-outline'}">Избери колачиња</button>`;
-      card.querySelector('button').onclick = () => openPicker(pk, d);
+        <button class="btn ${i === featuredIdx ? '' : 'btn-outline'}">${pk.choose === false ? `${I.cart} Додади во кошничка` : 'Избери колачиња'}</button>`;
+      card.querySelector('button').onclick = () => {
+        if (pk.choose === false) { SM.addPackage(pk.id); SM.toast(`${pk.name} е додаден во кошничката`); }
+        else openPicker(pk, d);
+      };
       container.appendChild(card);
     });
   }

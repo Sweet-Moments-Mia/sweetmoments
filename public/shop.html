@@ -20,6 +20,7 @@
 <section class="section" style="padding-top:44px">
   <div class="container">
     <div class="chips" id="chips"></div>
+    <p class="price-note hidden" id="priceNote"></p>
     <div class="grid grid-products" id="products"></div>
     <div class="card ing-strip hidden" id="ingStrip" style="margin-top:40px"><h3>Состојки</h3></div>
   </div>
@@ -27,7 +28,7 @@
 
 <section class="section band" id="packages">
   <div class="container">
-    <div class="section-title"><span class="eyebrow">Пакети</span><h2>Пакети по ваш избор</h2><p>Изберете пакет, а потоа одберете кои колачиња сакате во него</p></div>
+    <div class="section-title"><span class="eyebrow">Пакети</span><h2>Мешани пакети</h2><p>Разновиден новогодишен микс – дизајните ги бираме ние</p></div>
     <div class="grid grid-packages" id="packagesGrid"></div>
   </div>
 </section>
@@ -69,6 +70,11 @@ SM.ready.then(d => {
     Shop.renderProducts(grid, d.products.filter(p => !current || p.category === current));
   };
   draw();
+  if (d.settings.priceNote) {
+    const pn = document.getElementById('priceNote');
+    pn.innerHTML = `${SM.I.info}<span>${SM.esc(d.settings.priceNote)}</span>`;
+    pn.classList.remove('hidden');
+  }
   const ing = SM.ingredientsHtml(d.settings);
   if (ing) {
     const strip = document.getElementById('ingStrip');

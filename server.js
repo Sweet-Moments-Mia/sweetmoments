@@ -130,6 +130,15 @@ async function loadDb() {
       .map((n, i) => ({ id: uid(), image: img(n), caption: '', category: 'praznici', createdAt: t - i * 0.1 })));
     db.catalogVersion = 7;
   }
+  if (db.catalogVersion < 8) { // вистински фотографии во облик: Човече, Ирвас, Снешко, Елка
+    const img = n => '/images/c/' + n + '.jpg';
+    const map = { 'Човече': 'covece-oblik', 'Ирвас': 'irvas-oblik', 'Снешко': 'snesko-oblik', 'Елка': 'elka-oblik' };
+    for (const p of db.products) if (map[p.name] && !String(p.image || '').startsWith('/uploads/')) p.image = img(map[p.name]);
+    const occ = db.gallery.filter(g => g.image.startsWith('/images/s/')).map(g => g.createdAt);
+    const t = (occ.length ? Math.min(...occ) : Date.now()) - 0.01;
+    db.gallery.push(...Object.values(map).map((n, i) => ({ id: uid(), image: img(n), caption: '', category: 'praznici', createdAt: t - i * 0.001 })));
+    db.catalogVersion = 8;
+  }
   save();
   await store.flush();
 }

@@ -131,6 +131,9 @@ input[type=checkbox], input[type=radio] { width: 18px; height: 18px; accent-colo
 .product-body h3 { margin: 0; font-size: 1.55rem; }
 .product-desc { color: var(--muted); font-size: .88rem; margin: 0; }
 .product-media { position: relative; }
+.product-media .ph { width: 100%; height: 100%; display: grid; place-content: center; justify-items: center; gap: 12px; background: radial-gradient(circle at 50% 40%, #fffaf5 0, var(--cream-2) 75%); }
+.product-media .ph img { width: 56%; height: auto; object-fit: contain; opacity: .55; transform: none !important; }
+.product-media .ph span { font-size: .74rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .design-count { position: absolute; top: 12px; left: 12px; background: rgba(255,252,249,.94); color: var(--wine-dark); font-size: .74rem; font-weight: 800; padding: 5px 10px; border-radius: 999px; box-shadow: var(--shadow-sm); }
 .design-name { font-size: .84rem; color: var(--muted); }
 .design-name b { color: var(--ink); }

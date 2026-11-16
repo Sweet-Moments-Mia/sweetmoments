@@ -11,7 +11,7 @@ const Shop = (() => {
       const card = document.createElement('article');
       card.className = 'card product';
       card.innerHTML = `
-        <div class="product-media">${(design?.image || p.image) ? `<img src="${esc(design?.image || p.image)}" alt="${esc(p.name)}" loading="lazy">` : ''}${designs.length > 1 ? `<span class="design-count">${designs.length} дизајни</span>` : ''}</div>
+        <div class="product-media">${(design?.image || p.image) ? `<img src="${esc(design?.image || p.image)}" alt="${esc(p.name)}" loading="lazy">` : `<div class="ph"><img src="/images/logo.svg" alt=""><span>Слика наскоро</span></div>`}${designs.length > 1 ? `<span class="design-count">${designs.length} дизајни</span>` : ''}</div>
         <div class="product-body">
           <h3>${esc(p.name)}</h3>
           ${designs.length ? `<div class="design-name">Дизајн: <b>${esc(design.name)}</b></div><div class="designs" role="listbox" aria-label="Изберете дизајн">${designs.map((d, i) =>
@@ -35,7 +35,8 @@ const Shop = (() => {
         SM.toast(`${p.name}${design ? ' – ' + design.name : ''} × ${q.get()} е додадено во кошничката`);
       };
       card.querySelector('.product-actions').append(q, btn);
-      media.onclick = () => { const src = media.querySelector('img')?.src; if (src) SM.lightbox(src); };
+      media.onclick = () => { const src = media.querySelector(':scope > img')?.src; if (src) SM.lightbox(src); };
+      if (!(design?.image || p.image)) media.style.cursor = 'default';
       container.appendChild(card);
     }
   }

@@ -98,6 +98,7 @@ async function loadDb() {
     });
     db.catalogVersion = 3;
   }
+  if (db.catalogVersion < 4) applyImagesV4();
   save();
   await store.flush();
 }
@@ -143,6 +144,32 @@ function applyCatalogV2() {
   db.gallery = [...newGallery, ...db.gallery];
   db.catalogVersion = 2;
   console.log('Каталогот е ажуриран според ценовникот (верзија 2).');
+}
+// Само избраните „убави“ слики (папка Sweet_Moments_set_02) – без домашни и туѓи фотографии.
+// Сликите прикачени преку админ (/uploads/) се задржуваат.
+const SET2 = ['krug-snegulka', 'krug-svetilki', 'krug-dedo-mraz', 'krug-snesko', 'krug-medeno-lice', 'krug-bonbona',
+  'marshmelou-stopen-snesko', 'kvadrat-irvas', 'krug-pingvin', 'elka-zelena', 'krug-zeleno-lice',
+  'snesko-sini-slusalki', 'snesko-roze-trepki', 'snesko-crveni-slusalki', 'snesko-zeleni-zatvoreni-oci',
+  'snesko-portokalovi-slusalki', 'snesko-roze-nasmevka', 'snesko-zeleni-tocki'];
+function applyImagesV4() {
+  const C = '/images/c/';
+  const byName = {
+    'Човече': 'krug-medeno-lice', 'Круг со маршмелоу': 'marshmelou-stopen-snesko', 'Ирвас': 'kvadrat-irvas',
+    'Круг': 'krug-snegulka', 'Квадрат': 'kvadrat-irvas', 'Снешко': 'krug-snesko', 'Елка': 'elka-zelena',
+    'Правоаголник': '', 'Ѕвезда со мрвици': '', 'Ракавица': '' // уште немаат убава слика
+  };
+  for (const p of db.products) {
+    if (String(p.image || '').startsWith('/uploads/')) continue;
+    if (p.name in byName) p.image = byName[p.name] ? C + byName[p.name] + '.jpg' : '';
+    else if (!String(p.image || '').startsWith(C)) p.image = '';
+  }
+  const t = Date.now();
+  db.gallery = [
+    ...SET2.map((n, i) => ({ id: uid(), image: C + n + '.jpg', caption: '', category: 'praznici', createdAt: t - i })),
+    ...db.gallery.filter(g => String(g.image).startsWith('/uploads/'))
+  ];
+  db.catalogVersion = 4;
+  console.log('Сликите се заменети (верзија 4).');
 }
 function nextNumber() { db.orderSeq = (db.orderSeq || 1000) + 1; return db.orderSeq; }
 function save() { return store.save(db); }

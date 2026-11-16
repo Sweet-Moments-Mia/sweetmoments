@@ -201,7 +201,8 @@ function customerFields(b) {
 }
 
 // ---------- Известување по е-пошта за нова нарачка ----------
-// Се активира кога во .env ќе се внесат SMTP_HOST, SMTP_USER, SMTP_PASS (види .env.example)
+// Начин 1 (препорачан за бесплатен Render): Brevo преку HTTPS → BREVO_API_KEY (+ MAIL_FROM = потврдена адреса во Brevo)
+// Начин 2: SMTP → SMTP_HOST, SMTP_USER, SMTP_PASS (не работи на бесплатниот Render – SMTP портите се блокирани)
 let mailer = null;
 if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
   mailer = require('nodemailer').createTransport({
@@ -211,12 +212,26 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
   });
 }
+const BREVO_KEY = process.env.BREVO_API_KEY || '';
+const mailEnabled = () => !!(BREVO_KEY || mailer);
 const notifyTo = () => db.settings.orderEmail || db.admin.email;
+async function sendMail(to, subject, text) {
+  if (BREVO_KEY) {
+    const from = process.env.MAIL_FROM || to;
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ sender: { name: 'Sweet Moments', email: from }, to: [{ email: to }], subject, textContent: text })
+    });
+    if (!r.ok) throw new Error(`Brevo ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    return;
+  }
+  if (mailer) await mailer.sendMail({ from: `"Sweet Moments" <${process.env.SMTP_USER}>`, to, subject, text });
+}
 function notify(subject, lines) {
-  if (!mailer || !notifyTo()) return;
-  const text = lines.filter(Boolean).join('\n');
-  mailer.sendMail({ from: `"Sweet Moments" <${process.env.SMTP_USER}>`, to: notifyTo(), subject, text })
-    .catch(e => console.error('Е-пошта не е испратена:', e.message));
+  if (!mailEnabled() || !notifyTo()) return;
+  const text = lines.filter(Boolean).join('\n') + '\n\n—\nДетали и статус: админ панел → Нарачки';
+  sendMail(notifyTo(), subject, text).catch(e => console.error('Е-пошта не е испратена:', e.message));
 }
 function customerText(c) {
   return [`Име: ${c.name}`, `Телефон: ${c.phone}`, c.email && `Е-пошта: ${c.email}`,
@@ -373,9 +388,17 @@ app.post('/api/admin/account', (req, res) => {
   startSession(res); res.json({ ok: true });
 });
 
+app.post('/api/admin/test-email', async (req, res) => {
+  if (!mailEnabled()) return res.status(400).json({ error: 'Испраќањето е-пошта не е активирано (недостасува BREVO_API_KEY во Render).' });
+  try {
+    await sendMail(notifyTo(), 'Тест – Sweet Moments', 'Ова е тест порака. Известувањата за нови нарачки работат. 🍪');
+    res.json({ ok: true, to: notifyTo() });
+  } catch (e) { res.status(502).json({ error: 'Мејлот не е испратен: ' + e.message }); }
+});
+
 app.get('/api/admin/all', (req, res) => {
   const { admin, ...rest } = db;
-  res.json({ ...rest, account: { email: admin.email, mailEnabled: !!mailer } });
+  res.json({ ...rest, account: { email: admin.email, mailEnabled: mailEnabled() } });
 });
 
 app.put('/api/admin/settings', upload.single('logo'), (req, res) => {

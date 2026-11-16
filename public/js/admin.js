@@ -382,10 +382,14 @@
       <p class="panel-title" style="margin:0">Известувања за нови нарачки</p>
       <div class="notice">${a.mailEnabled ? I.check : I.info}<span>${a.mailEnabled
         ? 'Испраќањето е-пошта е <b>активно</b>. За секоја нова нарачка, барање или порака ќе добиете е-пошта.'
-        : 'Испраќањето е-пошта <b>сè уште не е активирано</b>. Потребно е еднократно поставување на серверот (датотека <code>.env</code>) – видете го упатството во <code>.env.example</code>.'}</span></div>
+        : 'Испраќањето е-пошта <b>сè уште не е активирано</b>. Потребен е клуч од Brevo (<code>BREVO_API_KEY</code>) во Render → Environment.'}</span></div>
       <label>Е-пошта за нарачки <small>(празно = иста како е-поштата за најава: ${esc(a.email)})</small><input name="orderEmail" type="email" value="${esc(D.settings.orderEmail || '')}"></label>
-      <div><button class="btn btn-sm">Зачувај</button></div>
+      <div class="actions"><button class="btn btn-sm">Зачувај</button>${a.mailEnabled ? '<button type="button" class="btn btn-sm btn-outline test">Испрати тест мејл</button>' : ''}</div>
     </form>`);
+    n.querySelector('.test')?.addEventListener('click', act(async () => {
+      const r = await api('POST', '/api/admin/test-email');
+      toast('Тест мејлот е испратен на ' + r.to + ' (провери и Spam)');
+    }));
     n.onsubmit = act(async e => {
       e.preventDefault();
       const fd = new FormData(); fd.set('orderEmail', n.orderEmail.value);

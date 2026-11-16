@@ -109,6 +109,7 @@ async function loadDb() {
     db.gallery = [...add, ...db.gallery];
     db.catalogVersion = 5;
   }
+  if (db.catalogVersion < 6) applyDesignsV6();
   save();
   await store.flush();
 }
@@ -180,6 +181,55 @@ function applyImagesV4() {
   ];
   db.catalogVersion = 4;
   console.log('Сликите се заменети (верзија 4).');
+}
+// Нови поединечни фотографии: дизајни за Квадрат и Круг, слики за Ирвас и Правоаголник
+function applyDesignsV6() {
+  const C = '/images/c/';
+  const img = n => C + n + '.jpg';
+  const find = name => db.products.find(p => p.name === name);
+  const notUploaded = p => !String(p.image || '').startsWith('/uploads/');
+
+  const kvadrat = find('Квадрат');
+  if (kvadrat) {
+    kvadrat.designs = [
+      { id: uid(), name: 'Дедо Мраз', image: img('kvadrat-dedo-mraz') },
+      { id: uid(), name: 'Ирвас', image: img('kvadrat-irvas-crni-rogovi') },
+      { id: uid(), name: 'Сина снегулка', image: img('kvadrat-sina-snegulka') },
+      { id: uid(), name: 'Бела снегулка', image: img('kvadrat-bela-snegulka') },
+      { id: uid(), name: 'Ирвас со светли рогови', image: img('kvadrat-irvas') }
+    ];
+    if (notUploaded(kvadrat)) kvadrat.image = img('kvadrat-dedo-mraz');
+    kvadrat.description = 'Изберете дизајн.';
+  }
+
+  const krug = find('Круг');
+  if (krug) {
+    const old = new Map((krug.designs || []).map(d => [d.name, d]));
+    const fresh = [['Бела снегулка на црвено', 'krug-bela-snegulka-na-crveno'], ['Црвена снегулка на бело', 'krug-crvena-snegulka-na-belo'],
+      ['Ирвас', 'krug-irvas'], ['Снешко класик', 'krug-snesko-klasik'], ['Ментол бонбона', 'krug-mentol-bonbona'], ['Спирала', 'krug-spirala']];
+    for (const [name, n] of fresh) if (!old.has(name)) old.set(name, { id: uid(), name, image: img(n) });
+    const order = ['Снегулка', 'Бела снегулка на црвено', 'Црвена снегулка на бело', 'Ирвас', 'Снешко класик', 'Снешко', 'Дедо Мраз',
+      'Новогодишни светилки', 'Медено лице', 'Ментол бонбона', 'Спирала', 'Бонбона', 'Пингвин', 'Зелено лице'];
+    const sorted = [...order.filter(n => old.has(n)).map(n => old.get(n)), ...[...old.values()].filter(d => !order.includes(d.name))];
+    krug.designs = sorted;
+  }
+
+  const irvas = find('Ирвас');
+  if (irvas && notUploaded(irvas)) irvas.image = img('krug-irvas');
+  const prav = find('Правоаголник');
+  if (prav && !prav.image) prav.image = img('kvadrat-sina-snegulka');
+
+  // галеријата се подредува по датум – новите колачиња одат веднаш по фотографиите од приликите
+  const occ = db.gallery.filter(g => g.image.startsWith('/images/s/')).map(g => g.createdAt);
+  const t = (occ.length ? Math.min(...occ) : Date.now()) - 1;
+  const add = ['kvadrat-dedo-mraz', 'krug-bela-snegulka-na-crveno', 'krug-irvas', 'kvadrat-sina-snegulka', 'krug-mentol-bonbona',
+    'kvadrat-irvas-crni-rogovi', 'krug-crvena-snegulka-na-belo', 'krug-snesko-klasik', 'kvadrat-bela-snegulka', 'krug-spirala']
+    .map((n, i) => ({ id: uid(), image: img(n), caption: '', category: 'praznici', createdAt: t - i }));
+  // по најновите фотографии од приликите (v5), пред поединечните колачиња
+  const firstOld = db.gallery.findIndex(g => g.image.startsWith(C));
+  if (firstOld < 0) db.gallery.push(...add); else db.gallery.splice(firstOld, 0, ...add);
+  db.catalogVersion = 6;
+  console.log('Нови дизајни и слики (верзија 6).');
 }
 function nextNumber() { db.orderSeq = (db.orderSeq || 1000) + 1; return db.orderSeq; }
 function save() { return store.save(db); }

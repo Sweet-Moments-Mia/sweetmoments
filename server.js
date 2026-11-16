@@ -139,6 +139,20 @@ async function loadDb() {
     db.gallery.push(...Object.values(map).map((n, i) => ({ id: uid(), image: img(n), caption: '', category: 'praznici', createdAt: t - i * 0.001 })));
     db.catalogVersion = 8;
   }
+  if (db.catalogVersion < 9) { // Правоаголник: 4 дизајни
+    const img = n => '/images/c/' + n + '.jpg';
+    const pr = db.products.find(p => p.name === 'Правоаголник');
+    const designs = [['Елка', 'pravoagolnik-elka'], ['Дедо Мраз', 'pravoagolnik-dedo-mraz'], ['Merry', 'pravoagolnik-merry'], ['Ho Ho', 'pravoagolnik-ho-ho']];
+    if (pr) {
+      if (!(pr.designs || []).length) pr.designs = designs.map(([name, n]) => ({ id: uid(), name, image: img(n) }));
+      if (!String(pr.image || '').startsWith('/uploads/')) pr.image = img('pravoagolnik-elka');
+      pr.description = 'Изберете дизајн.';
+    }
+    const occ = db.gallery.filter(g => g.image.startsWith('/images/s/')).map(g => g.createdAt);
+    const t = (occ.length ? Math.min(...occ) : Date.now()) - 0.0001;
+    db.gallery.push(...designs.map(([, n], i) => ({ id: uid(), image: img(n), caption: '', category: 'praznici', createdAt: t - i * 0.00001 })));
+    db.catalogVersion = 9;
+  }
   save();
   await store.flush();
 }

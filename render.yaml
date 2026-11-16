@@ -1,0 +1,16 @@
+# Render Blueprint – Sweet Moments
+services:
+  - type: web
+    name: sweet-moments
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: MONGODB_URI
+        sync: false          # се внесува рачно во Render (линкот од MongoDB Atlas)
+      - key: SESSION_SECRET
+        generateValue: true  # Render сам генерира таен клуч за најавата

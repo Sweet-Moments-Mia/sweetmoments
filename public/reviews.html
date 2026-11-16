@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="mk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Рецензии – Sweet Moments</title>
+<link rel="icon" href="/images/logo-square.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+<div class="page-head container"><span class="eyebrow">Рецензии</span><h1>Што велат нашите клиенти</h1><p>Вашето мислење ни значи многу</p></div>
+<section class="section" style="padding-top:44px">
+  <div class="container">
+    <div class="grid reviews-grid" id="list"></div>
+  </div>
+</section>
+<section class="section band">
+  <div class="narrow" style="max-width:640px">
+    <div class="section-title"><span class="eyebrow">Вашето искуство</span><h2>Оставете рецензија</h2></div>
+    <form class="card card-pad form" id="form">
+      <div><label>Оценка</label><div class="star-input" id="stars"></div></div>
+      <label>Име *<input name="name" required maxlength="60"></label>
+      <label>Вашето искуство *<textarea name="text" required maxlength="1500"></textarea></label>
+      <label>Слика од колачињата <small>(опционално)</small><input type="file" name="photo" accept="image/*"></label>
+      <p class="muted small" style="margin:0">Рецензиите се објавуваат по преглед. Со испраќање се согласувате вашето име, текстот и сликата да бидат јавно објавени на оваа страна (<a href="/privacy.html">Политика за приватност</a>).</p>
+      <button class="btn btn-block" id="btn">Испрати рецензија</button>
+    </form>
+  </div>
+</section>
+<div id="site-footer"></div>
+<script src="/js/common.js"></script>
+<script src="/js/shop.js"></script>
+<script>
+SM.ready.then(d => {
+  document.getElementById('list').innerHTML = d.reviews.length ? d.reviews.map(Shop.reviewCard).join('')
+    : '<p class="center muted" style="grid-column:1/-1">Сè уште нема објавени рецензии. Бидете први!</p>';
+});
+let rating = 5;
+const st = document.getElementById('stars');
+for (let i = 1; i <= 5; i++) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = '★'; b.setAttribute('aria-label', i + ' од 5');
+  b.onclick = () => { rating = i; paint(); };
+  st.appendChild(b);
+}
+const paint = () => [...st.children].forEach((b, i) => b.classList.toggle('on', i < rating));
+paint();
+document.getElementById('form').onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target, btn = document.getElementById('btn');
+  const fd = new FormData(f); fd.append('rating', rating);
+  if (!f.photo.files.length) fd.delete('photo');
+  btn.disabled = true;
+  try {
+    await SM.postForm('/api/reviews', fd);
+    f.reset(); rating = 5; paint();
+    SM.toast('Ви благодариме! Рецензијата ќе биде објавена по преглед.');
+  } catch (err) { SM.toast(err.message, true); }
+  btn.disabled = false;
+};
+</script>
+</body>
+</html>

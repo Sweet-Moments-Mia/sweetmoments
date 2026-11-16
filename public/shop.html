@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="mk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Колачиња и пакети – Sweet Moments</title>
+<meta name="description" content="Рачно декорирани колачиња поединечно или во пакети по ваш избор.">
+<link rel="icon" href="/images/logo-square.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-head container">
+  <span class="eyebrow">Продавница</span>
+  <h1>Колачиња и пакети</h1>
+  <p>Нарачајте секое колаче поединечно или изберете пакет и пополнете го со вашите омилени. Во кошничката избирате дали да бидат спакувани заедно или секое посебно.</p>
+</div>
+
+<section class="section" style="padding-top:44px">
+  <div class="container">
+    <div class="chips" id="chips"></div>
+    <div class="grid grid-products" id="products"></div>
+    <div class="card ing-strip hidden" id="ingStrip" style="margin-top:40px"><h3>Состојки</h3></div>
+  </div>
+</section>
+
+<section class="section band" id="packages">
+  <div class="container">
+    <div class="section-title"><span class="eyebrow">Пакети</span><h2>Пакети по ваш избор</h2><p>Изберете пакет, а потоа одберете кои колачиња сакате во него</p></div>
+    <div class="grid grid-packages" id="packagesGrid"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="cta-band">
+      <div>
+        <span class="eyebrow">По ваша мерка</span>
+        <h2>Сакате нешто посебно?</h2>
+        <p>Испратете ни слика или идеја и ќе направиме колачиња по ваша желба – за роденден, свадба или прослава.</p>
+        <a href="/custom.html" class="btn btn-light">Нарачај сопствен дизајн</a>
+      </div>
+      <div class="cta-imgs"><img src="/images/own-8.jpg" alt="" loading="lazy"><img src="/images/own-1.jpg" alt="" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+<script src="/js/common.js"></script>
+<script src="/js/shop.js"></script>
+<script>
+SM.ready.then(d => {
+  const chips = document.getElementById('chips');
+  const grid = document.getElementById('products');
+  const used = new Set(d.products.map(p => p.category));
+  const cats = [{ id: '', name: 'Сите' }, ...d.categories.filter(c => used.has(c.id))];
+  let current = '';
+  const draw = () => {
+    chips.innerHTML = '';
+    for (const c of cats) {
+      const b = document.createElement('button');
+      b.className = 'chip' + (c.id === current ? ' active' : '');
+      b.textContent = c.name;
+      b.onclick = () => { current = c.id; draw(); };
+      chips.appendChild(b);
+    }
+    chips.classList.toggle('hidden', cats.length <= 2);
+    Shop.renderProducts(grid, d.products.filter(p => !current || p.category === current));
+  };
+  draw();
+  const ing = SM.ingredientsHtml(d.settings);
+  if (ing) {
+    const strip = document.getElementById('ingStrip');
+    const tmp = document.createElement('div'); tmp.innerHTML = ing;
+    strip.append(...tmp.firstElementChild.children);
+    strip.classList.remove('hidden');
+  }
+  Shop.renderPackages(document.getElementById('packagesGrid'), d);
+  if (!d.packages.length) document.getElementById('packages').classList.add('hidden');
+  if (location.hash === '#packages') document.getElementById('packages').scrollIntoView();
+});
+</script>
+</body>
+</html>

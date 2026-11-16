@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="mk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сопствен дизајн – Sweet Moments</title>
+<meta name="description" content="Нарачајте колачиња по ваш дизајн за роденден, свадба или прослава.">
+<link rel="icon" href="/images/logo-square.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-head container">
+  <span class="eyebrow">По ваша мерка</span>
+  <h1>Колачиња по ваш дизајн</h1>
+  <p>Роденден, свадба, крштевка или корпоративен настан. Прикачете слика, опишете ја идејата и напишете колку колачиња ви се потребни. Ќе ве повикаме со понуда.</p>
+</div>
+
+<section class="section" style="padding-top:40px">
+  <div class="narrow" id="root">
+    <form class="card card-pad form" id="form" novalidate>
+      <div class="form-section-title">За колачињата</div>
+      <div class="form-row">
+        <label>Прилика *
+          <select name="occasion" required>
+            <option>Роденден</option><option>Свадба</option><option>Крштевка</option><option>Бебешка забава</option>
+            <option>Нова година / Божиќ</option><option>Свети Валентин</option><option>Корпоративен настан</option><option>Прослава</option><option>Друго</option>
+          </select>
+        </label>
+        <label>Количина (број на колачиња) *<input name="quantity" type="number" min="1" max="2000" value="12" required></label>
+      </div>
+      <label>Опис на дизајнот *<small>Бои, ликови, форма, тема…</small><textarea name="design" required maxlength="3000" placeholder="На пр. розови и бели колачиња со пеперутки и бројка 5"></textarea></label>
+      <label>Текст на колачињата <small>(опционално – име, години, датум)</small><input name="cookieText" maxlength="300" placeholder="На пр. Ана 5  ·  Марија & Петар 14.06."></label>
+      <label class="dropzone" id="drop">
+        <input type="file" accept="image/*" multiple class="hidden" id="files">
+        <span data-i="upload"></span>
+        <b>Прикачете слика од дизајнот</b>
+        <span class="muted small">Кликнете или повлечете слики тука · до 5 слики, макс. 8 MB</span>
+      </label>
+      <div class="previews" id="previews"></div>
+      <div>
+        <label style="margin-bottom:8px">Пакување</label>
+        <div class="choice-group">
+          <label class="choice"><input type="radio" name="packing" value="together" checked><span><b>Заедно во кутија</b><span class="muted">Сите колачиња заедно</span></span></label>
+          <label class="choice"><input type="radio" name="packing" value="individual"><span><b>Секое колаче посебно</b><span class="muted">Одлично за подароци за гости</span></span></label>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="form-section-title">Ваши податоци</div>
+      <div class="form-row">
+        <label>Име и презиме *<input name="name" required maxlength="100" autocomplete="name"></label>
+        <label>Телефон *<input name="phone" required type="tel" maxlength="40" autocomplete="tel" placeholder="07X XXX XXX"></label>
+      </div>
+      <div class="form-row">
+        <label>Е-пошта <small>(опционално)</small><input name="email" type="email" maxlength="120" autocomplete="email"></label>
+        <label>Потребно до датум<input name="date" type="date"></label>
+      </div>
+      <div class="form-row">
+        <label>Преземање<select name="delivery"><option value="pickup">Лично подигање</option><option value="delivery">Достава</option></select></label>
+        <label id="addrWrap" class="hidden">Адреса за достава<input name="address" maxlength="300"></label>
+      </div>
+      <label>Дополнителна забелешка<textarea name="note" maxlength="2000" style="min-height:90px"></textarea></label>
+      <div class="notice"><span data-i="phone"></span><span>Цената зависи од сложеноста и количината. <b>Ќе ве повикаме по телефон</b> со понуда пред да започнеме со изработка.</span></div>
+      <label class="check"><input type="checkbox" name="consent" required><span>Се согласувам моите податоци и прикачените слики да се користат за обработка на барањето според <a href="/privacy.html" target="_blank">Политиката за приватност</a>.</span></label>
+      <button class="btn btn-block" id="submitBtn">Испрати барање</button>
+    </form>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+<script src="/js/common.js"></script>
+<script>
+document.querySelectorAll('[data-i]').forEach(e => e.innerHTML = SM.I[e.dataset.i]);
+const form = document.getElementById('form');
+const occ = new URLSearchParams(location.search).get('occasion');
+if (occ) [...form.occasion.options].forEach(o => { if (o.text === occ) o.selected = true; });
+form.date.min = new Date().toISOString().slice(0, 10);
+form.delivery.onchange = () => document.getElementById('addrWrap').classList.toggle('hidden', form.delivery.value !== 'delivery');
+let files = [];
+const input = document.getElementById('files'), drop = document.getElementById('drop');
+function drawPreviews() {
+  const pv = document.getElementById('previews');
+  pv.innerHTML = '';
+  files.forEach((f, i) => {
+    const d = document.createElement('div'); d.className = 'pv';
+    d.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><button type="button" aria-label="Отстрани">×</button>`;
+    d.querySelector('button').onclick = () => { files.splice(i, 1); drawPreviews(); };
+    pv.appendChild(d);
+  });
+}
+function addFiles(list) {
+  const imgs = [...list].filter(f => f.type.startsWith('image/'));
+  if (imgs.some(f => f.size > 8 * 1024 * 1024)) SM.toast('Некои слики се поголеми од 8 MB и се прескокнати.', true);
+  files = [...files, ...imgs.filter(f => f.size <= 8 * 1024 * 1024)].slice(0, 5);
+  drawPreviews();
+}
+input.onchange = () => { addFiles(input.files); input.value = ''; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); };
+
+form.onsubmit = async e => {
+  e.preventDefault();
+  if (!form.reportValidity()) return;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Се испраќа…';
+  const fd = new FormData(form);
+  fd.set('consent', form.consent.checked);
+  files.forEach(f => fd.append('images', f));
+  try {
+    const r = await SM.postForm('/api/custom-orders', fd);
+    const d = await SM.ready;
+    document.getElementById('root').innerHTML = SM.successHtml('Барањето е испратено!', `<p>Број на барање: <b>#${r.number}</b></p>`, d.settings);
+    scrollTo(0, 0);
+  } catch (err) {
+    SM.toast(err.message, true);
+    btn.disabled = false; btn.textContent = 'Испрати барање';
+  }
+};
+</script>
+</body>
+</html>

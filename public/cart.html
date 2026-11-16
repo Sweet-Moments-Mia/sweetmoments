@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="mk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кошничка – Sweet Moments</title>
+<link rel="icon" href="/images/logo-square.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-head container"><span class="eyebrow">Нарачка</span><h1>Кошничка</h1></div>
+
+<section class="section" style="padding-top:36px">
+  <div class="container" id="root">
+    <div class="cart-layout">
+      <div class="card card-pad">
+        <h3>Вашата нарачка</h3>
+        <div id="lines"></div>
+        <h3 style="margin-top:30px">Пакување</h3>
+        <div class="choice-group">
+          <label class="choice"><input type="radio" name="packing" value="together" checked><span><b>Заедно во кутија</b><span class="muted">Сите колачиња спакувани заедно</span></span></label>
+          <label class="choice"><input type="radio" name="packing" value="individual"><span><b>Секое колаче посебно</b><span class="muted" id="wrapNote">Идеално за подароци</span></span></label>
+        </div>
+        <div class="totals" id="totals"></div>
+      </div>
+
+      <form class="card card-pad form" id="checkout" novalidate>
+        <h3 style="margin:0">Ваши податоци</h3>
+        <div class="notice hidden" id="announceBox"><span data-i="calendar"></span><b id="announceText"></b></div>
+        <div class="form-row">
+          <label>Име и презиме *<input name="name" required maxlength="100" autocomplete="name"></label>
+          <label>Телефон *<input name="phone" required maxlength="40" type="tel" autocomplete="tel" placeholder="07X XXX XXX"></label>
+        </div>
+        <label>Е-пошта <small>(опционално)</small><input name="email" type="email" maxlength="120" autocomplete="email"></label>
+        <div class="form-row">
+          <label>Преземање
+            <select name="delivery"><option value="pickup">Лично подигање</option><option value="delivery">Достава</option></select>
+          </label>
+          <label>Потребно до датум<input name="date" type="date"></label>
+        </div>
+        <label id="addrWrap" class="hidden">Адреса за достава<input name="address" maxlength="300" autocomplete="street-address"></label>
+        <label>Забелешка <small>(посебни желби, алергии…)</small><textarea name="note" maxlength="2000"></textarea></label>
+        <div class="notice"><span data-i="phone"></span><span>По нарачката <b>ќе ве контактираме по телефон</b> за потврда, цена на достава и време на преземање. <span id="deliveryInfo"></span></span></div>
+        <label class="check"><input type="checkbox" name="consent" required><span>Се согласувам моите податоци да се користат за обработка на нарачката според <a href="/privacy.html" target="_blank">Политиката за приватност</a> и ги прифаќам <a href="/terms.html" target="_blank">Условите за нарачка</a>.</span></label>
+        <button class="btn btn-block" type="submit" id="submitBtn">Испрати нарачка</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+<script src="/js/common.js"></script>
+<script>
+document.querySelectorAll('[data-i]').forEach(e => e.innerHTML = SM.I[e.dataset.i]);
+SM.ready.then(d => {
+  const { esc, money, I } = SM;
+  const s = d.settings;
+  const prod = id => d.products.find(p => p.id === id);
+  const pack = id => d.packages.find(p => p.id === id);
+  const wrapPrice = Number(s.individualWrapPrice) || 0;
+  document.getElementById('wrapNote').textContent = wrapPrice ? `+ ${money(wrapPrice)} по колаче · идеално за подароци` : 'Идеално за подароци';
+  document.getElementById('deliveryInfo').textContent = s.deliveryInfo || '';
+  if (s.announcement) { document.getElementById('announceText').textContent = s.announcement; document.getElementById('announceBox').classList.remove('hidden'); }
+  const form = document.getElementById('checkout');
+  form.delivery.onchange = () => document.getElementById('addrWrap').classList.toggle('hidden', form.delivery.value !== 'delivery');
+  form.date.min = new Date().toISOString().slice(0, 10);
+  document.querySelectorAll('[name=packing]').forEach(r => r.onchange = draw);
+
+  function valid() {
+    const c = SM.getCart().filter(i => i.type === 'product' ? prod(i.id) : (pack(i.id) && i.cookies.every(prod) && i.cookies.length === pack(i.id).count));
+    SM.setCart(c); return c;
+  }
+
+  function draw() {
+    const cart = valid();
+    if (!cart.length) {
+      document.getElementById('root').innerHTML = `<div class="card empty"><div class="big-ico">${I.cart}</div><h2>Кошничката е празна</h2><p class="muted">Додадете колачиња или пакет по ваш избор.</p><a href="/shop.html" class="btn">Кон колачињата</a></div>`;
+      return;
+    }
+    const lines = document.getElementById('lines');
+    lines.innerHTML = '';
+    let sub = 0, cookies = 0;
+    for (const item of cart) {
+      const row = document.createElement('div');
+      row.className = 'cart-line';
+      let price, title, detail, img;
+      if (item.type === 'product') {
+        const p = prod(item.id);
+        price = p.price; title = p.name; detail = `${money(p.price)} / парче${p.size ? ' · ' + esc(p.size) : ''}`;
+        img = p.image ? `<img src="${esc(p.image)}" alt="">` : `<div class="pk-thumb">${I.cookie}</div>`;
+        cookies += item.qty;
+      } else {
+        const pk = pack(item.id);
+        price = pk.price; title = `${pk.name} · ${pk.count} колачиња`;
+        const tally = {};
+        item.cookies.forEach(id => tally[prod(id).name] = (tally[prod(id).name] || 0) + 1);
+        detail = Object.entries(tally).map(([n, c]) => `${esc(n)} × ${c}`).join(', ');
+        img = `<div class="pk-thumb">${I.gift}</div>`;
+        cookies += pk.count * item.qty;
+      }
+      sub += price * item.qty;
+      row.innerHTML = `${img}<div><h4>${esc(title)}</h4><div class="sub">${detail}</div></div><div class="right"><b>${money(price * item.qty)}</b></div>`;
+      const q = SM.qtyControl(item.qty, 1, 500);
+      q.input.addEventListener('change', () => { const c = SM.getCart(); const it = c.find(x => x.key === item.key); if (it) { it.qty = q.get(); SM.setCart(c); draw(); } });
+      const rm = document.createElement('button');
+      rm.className = 'link-btn'; rm.textContent = 'Отстрани';
+      rm.onclick = () => { SM.setCart(SM.getCart().filter(x => x.key !== item.key)); draw(); };
+      row.querySelector('.right').append(q, rm);
+      lines.appendChild(row);
+    }
+    const individual = document.querySelector('[name=packing]:checked').value === 'individual';
+    const fee = individual ? cookies * wrapPrice : 0;
+    document.getElementById('totals').innerHTML = `
+      <div><span class="muted">Број на колачиња</span><span>${cookies}</span></div>
+      <div><span class="muted">Меѓузбир</span><span>${money(sub)}</span></div>
+      ${fee ? `<div><span class="muted">Поединечно пакување (${cookies} × ${money(wrapPrice)})</span><span>${money(fee)}</span></div>` : ''}
+      <div class="grand"><span>Вкупно</span><span>${money(sub + fee)}</span></div>
+      <div class="muted small">Доставата, ако ја изберете, се договара по телефон.</div>`;
+  }
+  draw();
+
+  form.onsubmit = async e => {
+    e.preventDefault();
+    if (!form.reportValidity()) return;
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Се испраќа…';
+    try {
+      const body = Object.fromEntries(new FormData(form));
+      body.consent = form.consent.checked;
+      body.packing = document.querySelector('[name=packing]:checked').value;
+      body.items = SM.getCart().map(({ type, id, qty, cookies }) => ({ type, id, qty, cookies }));
+      const r = await SM.postJSON('/api/orders', body);
+      SM.setCart([]);
+      document.getElementById('root').innerHTML = SM.successHtml('Ви благодариме за нарачката!',
+        `<p>Вашата нарачка <b>#${r.number}</b> е примена. Вкупно: <b>${money(r.total)}</b></p>`, s);
+      scrollTo(0, 0);
+    } catch (err) {
+      SM.toast(err.message, true);
+      btn.disabled = false; btn.textContent = 'Испрати нарачка';
+    }
+  };
+});
+</script>
+</body>
+</html>

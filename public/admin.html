@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="mk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Админ – Sweet Moments</title>
+<link rel="icon" href="/images/logo-square.png">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body { background: #f7f1ec; }
+  .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 20% 10%, #fff 0, transparent 40%), var(--cream); }
+  .login-card { width: min(420px, 100%); padding: 44px 38px; text-align: center; }
+  .login-card img { height: 84px; margin: 0 auto 18px; }
+  .login-card h2 { font-size: 1.9rem; margin-bottom: 4px; }
+  .login-card .form { text-align: left; margin-top: 26px; }
+
+  .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+  .side { background: var(--wine-dark); color: #f1dfd8; padding: 26px 16px; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 6px; }
+  .side .brand { padding: 0 10px 22px; border-bottom: 1px solid rgba(255,255,255,.12); margin-bottom: 14px; }
+  .side .brand img { height: 62px; width: auto; }
+  .side .brand small { display: block; font-size: .7rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-top: 8px; font-weight: 700; }
+  .nav-item { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: none; color: inherit; font: 600 .9rem var(--sans); padding: 11px 14px; border-radius: 10px; cursor: pointer; text-align: left; }
+  .nav-item svg { width: 19px; height: 19px; opacity: .85; }
+  .nav-item:hover { background: rgba(255,255,255,.07); }
+  .nav-item.active { background: rgba(255,255,255,.12); color: #fff; }
+  .nav-item .badge { margin-left: auto; background: var(--gold); color: #fff; border-radius: 9px; padding: 1px 8px; font-size: .72rem; font-weight: 800; }
+  .side .bottom { margin-top: auto; display: grid; gap: 4px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 14px; }
+  .side a.nav-item { text-decoration: none; }
+  .main { padding: 34px 40px 60px; min-width: 0; }
+  .main-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 26px; flex-wrap: wrap; }
+  .main-head h1 { font-size: 2.3rem; margin: 0; }
+  .main-head p { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
+  .mobile-bar { display: none; }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .side { position: fixed; inset: 0 auto 0 0; width: 270px; z-index: 100; transform: translateX(-100%); transition: transform .25s; }
+    .side.open { transform: none; box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
+    .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--wine-dark); position: sticky; top: 0; z-index: 50; }
+    .mobile-bar img { height: 38px; }
+    .mobile-bar button { color: #fff; }
+    .main { padding: 24px 16px 60px; }
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 26px; }
+  .stat { padding: 22px; display: flex; gap: 16px; align-items: center; }
+  .stat .ico-wrap { width: 48px; height: 48px; border-radius: 12px; background: var(--gold-soft); color: var(--wine); display: grid; place-items: center; flex: none; }
+  .stat .ico-wrap svg { width: 22px; height: 22px; }
+  .stat b { font-size: 1.6rem; display: block; line-height: 1.1; color: var(--wine-dark); }
+  .stat span { font-size: .8rem; color: var(--muted); font-weight: 600; }
+
+  .rows { display: grid; gap: 14px; }
+  .row-card { padding: 22px 24px; display: grid; gap: 14px; }
+  .panel-title { font-family: var(--sans); font-size: .76rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 800; margin: 0 0 14px; }
+  .edit-grid { display: grid; grid-template-columns: 120px 1fr; gap: 20px; align-items: start; }
+  .thumb-pick { cursor: pointer; display: grid; gap: 6px; justify-items: center; font-weight: 600; color: var(--muted); font-size: .76rem; }
+  .thumb-pick .thumb { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; background: var(--cream-2); display: grid; place-items: center; color: var(--muted); }
+  .thumb-pick:hover .thumb { outline: 2px solid var(--wine); outline-offset: 2px; }
+  .fields { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .fields .wide { grid-column: 1 / -1; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .actions select { width: auto; padding: 9px 12px; }
+  .toggle { display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 8px; font-weight: 600; }
+  .order-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .order-no { font-family: var(--serif); font-size: 1.6rem; font-weight: 700; color: var(--wine-dark); }
+  .pill { padding: 4px 11px; border-radius: 999px; font-size: .74rem; font-weight: 800; background: var(--cream-2); color: var(--ink); white-space: nowrap; }
+  .pill.нова, .pill.pending { background: #fdecc8; color: #7a5300; }
+  .pill.потврдена, .pill.во.изработка { background: #e5ecfb; color: #2b4a8b; }
+  .pill.готова, .pill.испорачана, .pill.ok { background: #dcefe2; color: #22603a; }
+  .pill.откажана { background: #f6d9d6; color: #8a2219; }
+  .pill.kind { background: var(--wine-soft); color: var(--wine); }
+  .info-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; background: var(--cream); border-radius: 12px; padding: 16px; font-size: .9rem; }
+  .info-cols small { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); font-weight: 800; margin-bottom: 2px; }
+  .order-imgs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .order-imgs img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; cursor: zoom-in; }
+  table.lines { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.lines td { padding: 9px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.lines tr:last-child td { border-bottom: 0; font-size: 1rem; }
+  .gal-admin { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .gal-admin .card { overflow: hidden; }
+  .gal-admin img { aspect-ratio: 1; object-fit: cover; width: 100%; }
+  .gal-admin .p { padding: 12px; display: grid; gap: 8px; }
+  .gal-admin input, .gal-admin select { padding: 9px 11px; font-size: .86rem; }
+  .empty-state { padding: 50px 20px; text-align: center; color: var(--muted); }
+  .danger { color: #a1271d !important; }
+  @media (max-width: 560px) { .edit-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="login-wrap hidden" id="login">
+  <div class="card login-card">
+    <img src="/images/logo.svg" alt="Sweet Moments">
+    <h2 id="loginTitle">Најава</h2>
+    <p class="muted small" id="loginHint">Административен панел</p>
+    <form class="form" id="loginForm">
+      <label>Е-пошта<input type="email" name="email" required autocomplete="username"></label>
+      <label>Лозинка<input type="password" name="password" required minlength="8" autocomplete="current-password"></label>
+      <label id="confirmWrap" class="hidden">Повтори лозинка<input type="password" name="confirm" autocomplete="new-password"></label>
+      <button class="btn btn-block">Најави се</button>
+    </form>
+    <p class="small" style="margin:22px 0 0"><a href="/">← Назад на страната</a></p>
+  </div>
+</div>
+
+<div class="shell hidden" id="panel">
+  <aside class="side" id="side">
+    <div class="brand"><img src="/images/logo-white.svg" alt="Sweet Moments"><small>Админ панел</small></div>
+    <nav id="tabs" style="display:grid;gap:2px"></nav>
+    <div class="bottom">
+      <a class="nav-item" href="/" target="_blank" id="viewSite"></a>
+      <button class="nav-item" id="logout"></button>
+    </div>
+  </aside>
+  <div>
+    <div class="mobile-bar"><img src="/images/logo-white.svg" alt=""><button class="icon-btn" id="menuBtn" aria-label="Мени"></button></div>
+    <main class="main">
+      <div class="main-head"><div><h1 id="viewTitle"></h1><p id="viewSub"></p></div><div id="viewActions"></div></div>
+      <section id="view"></section>
+    </main>
+  </div>
+</div>
+<script src="/js/common.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="mk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Контакт – Sweet Moments</title>
+<link rel="icon" href="/images/logo-square.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="site-header"></div>
+<div class="page-head container"><span class="eyebrow">Контакт</span><h1>Тука сме за вас</h1><p>Имате прашање за нарачка или дизајн? Пишете ни – одговараме брзо.</p></div>
+<section class="section" style="padding-top:44px">
+  <div class="container contact-grid">
+    <div class="card card-pad">
+      <h3>Sweet Moments</h3>
+      <p class="muted" id="about"></p>
+      <ul class="info-list" id="info"></ul>
+      <p class="muted small" id="delivery"></p>
+      <div class="social-row" id="social" style="justify-content:flex-start"></div>
+    </div>
+    <form class="card card-pad form" id="form">
+      <h3 style="margin:0">Испратете порака</h3>
+      <div class="form-row">
+        <label>Име *<input name="name" required maxlength="100" autocomplete="name"></label>
+        <label>Телефон или е-пошта *<input name="contact" required maxlength="120"></label>
+      </div>
+      <label>Порака *<textarea name="text" required maxlength="3000" style="min-height:170px"></textarea></label>
+      <p class="muted small" style="margin:0">Податоците ги користиме само за да ви одговориме (<a href="/privacy.html">Политика за приватност</a>).</p>
+      <button class="btn btn-block" id="btn">Испрати порака</button>
+    </form>
+  </div>
+</section>
+<div id="site-footer"></div>
+<script src="/js/common.js"></script>
+<script>
+SM.ready.then(d => {
+  const s = d.settings, e = SM.esc, I = SM.I;
+  document.getElementById('about').textContent = s.about;
+  document.getElementById('delivery').textContent = s.deliveryInfo;
+  document.getElementById('info').innerHTML = [
+    s.phone && `<li><span class="ico-wrap">${I.phone}</span><div><small>Телефон</small><a href="tel:${e(s.phone.replace(/\s/g, ''))}">${e(s.phone)}</a></div></li>`,
+    s.email && `<li><span class="ico-wrap">${I.mail}</span><div><small>Е-пошта</small><a href="mailto:${e(s.email)}">${e(s.email)}</a></div></li>`,
+    s.address && `<li><span class="ico-wrap">${I.pin}</span><div><small>Локација</small>${e(s.address)}</div></li>`
+  ].filter(Boolean).join('');
+  document.getElementById('social').innerHTML = SM.socialButtons(s);
+});
+document.getElementById('form').onsubmit = async ev => {
+  ev.preventDefault();
+  const f = ev.target, btn = document.getElementById('btn');
+  btn.disabled = true;
+  try {
+    await SM.postJSON('/api/messages', Object.fromEntries(new FormData(f)));
+    f.reset(); SM.toast('Пораката е испратена. Ви благодариме!');
+  } catch (err) { SM.toast(err.message, true); }
+  btn.disabled = false;
+};
+</script>
+</body>
+</html>

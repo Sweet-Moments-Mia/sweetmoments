@@ -1,0 +1,11 @@
+node_modules/
+# локални податоци и тајни – НЕ одат на GitHub
+data/
+uploads/
+.env
+.claude/
+# оригиналните слики во главната папка (копиите се во public/images)
+/*.jpg
+/*.jpeg
+/*.png
+*.log

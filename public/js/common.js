@@ -38,7 +38,7 @@ const SM = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeUrl = u => (/^https?:\/\//i.test(u || '') ? u : '');
   let currency = 'ден';
-  const money = n => `${Number(n || 0).toLocaleString('mk-MK')} ${currency}`;
+  const money = n => `${String(Math.round(Number(n || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} ${currency}`;
 
   // ---------- Безбедно локално складирање ----------
   const store = {

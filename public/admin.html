@@ -81,6 +81,34 @@
   .gal-admin img { aspect-ratio: 1; object-fit: cover; width: 100%; }
   .gal-admin .p { padding: 12px; display: grid; gap: 8px; }
   .gal-admin input, .gal-admin select { padding: 9px 11px; font-size: .86rem; }
+  /* Календар */
+  .cal-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .cal-head .icon-btn { font-size: 1.6rem; line-height: 1; }
+  .cal-title { font-family: var(--serif); font-size: 1.6rem; color: var(--wine-dark); text-transform: capitalize; min-width: 170px; text-align: center; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 12px; }
+  .cal-dow { text-align: center; font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 4px 0 8px; }
+  .cal-cell { min-height: 104px; border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 8px; text-align: left; display: flex; flex-direction: column; gap: 4px; cursor: pointer; font: inherit; color: inherit; transition: border-color .15s, box-shadow .15s; overflow: hidden; }
+  .cal-cell:hover { border-color: #d9bfb0; }
+  .cal-cell.empty { background: transparent; border: 0; cursor: default; }
+  .cal-cell.has { background: #fffaf6; }
+  .cal-cell.is-today .cal-num { background: var(--wine); color: #fff; }
+  .cal-cell.is-sel { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(142, 31, 46, .12); }
+  .cal-num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .85rem; }
+  .cal-count { font-size: .76rem; font-weight: 800; color: var(--wine-dark); display: flex; justify-content: space-between; gap: 4px; }
+  .cal-count small { color: var(--muted); font-weight: 600; }
+  .cal-chips { display: grid; gap: 3px; }
+  .chip-o { font-size: .68rem !important; padding: 2px 7px !important; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .cal-chips .more { font-size: .7rem; color: var(--muted); font-weight: 700; }
+  @media (max-width: 700px) {
+    .cal-grid { gap: 3px; padding: 6px; }
+    .cal-cell { min-height: 58px; padding: 4px; border-radius: 8px; align-items: center; }
+    .cal-chips, .cal-count small { display: none; }
+    .cal-count { font-size: 0; }
+    .cal-cell.has .cal-count::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--wine); display: block; }
+  }
+  .due { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 700px) { .due { grid-template-columns: 1fr; } }
+  .due-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; flex-wrap: wrap; font-size: .9rem; }
   .designs-admin { border-top: 1px solid var(--line); padding-top: 12px; }
   .designs-admin summary { cursor: pointer; }
   .d-list { display: grid; gap: 8px; margin: 12px 0; }

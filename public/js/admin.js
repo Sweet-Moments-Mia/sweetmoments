@@ -34,7 +34,7 @@
   }
   const act = fn => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message, true); } };
   const h = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
-  const date = t => new Date(t).toLocaleString('mk-MK', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const date = t => { const d = new Date(t); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}. ${d.getFullYear()}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const catOptions = sel => `<option value="">— без категорија —</option>` + D.categories.map(c => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 
   // ---------- Најава ----------
@@ -74,6 +74,7 @@
   const TABS = [
     ['dashboard', 'Преглед', I.dash, 'Брз преглед на продавницата'],
     ['orders', 'Нарачки', I.orders, 'Сите нарачки и барања за сопствен дизајн', () => D.orders.filter(o => o.status === 'нова').length],
+    ['calendar', 'Календар', I.calendar, 'Нарачки по ден – според датумот „потребно до“'],
     ['products', 'Колачиња', I.cookieI, 'Додавајте и уредувајте колачиња, цени и димензии'],
     ['packages', 'Пакети', I.pkg, 'Пакети со број на колачиња и цена'],
     ['gallery', 'Галерија', I.image, 'Слики на страната Галерија'],
@@ -94,7 +95,7 @@
     $('#viewTitle').textContent = t[1]; $('#viewSub').textContent = t[3];
     $('#viewActions').innerHTML = '';
     const v = $('#view'); v.innerHTML = '';
-    ({ dashboard, orders, products, packages, gallery, reviews, messages, settings, account })[tab](v);
+    ({ dashboard, orders, calendar, products, packages, gallery, reviews, messages, settings, account })[tab](v);
   }
   const go = id => { tab = id; render(); };
 
@@ -111,6 +112,25 @@
       <div class="card stat"><span class="ico-wrap">${I.star}</span><div><b>${D.reviews.filter(r => !r.approved).length}</b><span>Рецензии за одобрување</span></div></div>
     </div>`));
     if (!D.account.mailEnabled) v.appendChild(h(`<div class="notice" style="margin-bottom:22px">${I.info}<span>Известувањата по е-пошта за нови нарачки сè уште не се активирани. Видете <b>Мој профил</b> за упатство.</span></div>`));
+    // Денес и утре – според датумот „потребно до“
+    const t0 = new Date(), t1 = new Date(); t1.setDate(t1.getDate() + 1);
+    const dueBox = h(`<div class="card card-pad" style="margin-bottom:22px"><div class="order-head" style="margin-bottom:12px"><h3 style="margin:0">Потребни денес и утре</h3><button class="btn btn-sm btn-outline">Отвори календар</button></div><div class="due"></div></div>`);
+    dueBox.querySelector('button').onclick = () => { cal.month = null; cal.day = null; go('calendar'); };
+    const due = dueBox.querySelector('.due');
+    for (const [label, d] of [['Денес', t0], ['Утре', t1]]) {
+      const key = isoDay(d);
+      const list = D.orders.filter(o => o.customer?.date === key && o.status !== 'откажана');
+      const col = h(`<div class="due-col"><p class="panel-title" style="margin:0 0 8px">${label} · ${esc(fmtDay(key))}</p></div>`);
+      if (!list.length) col.appendChild(h('<p class="muted small" style="margin:0">Нема нарачки.</p>'));
+      for (const o of list) {
+        const r = h(`<div class="due-row"><span><b>#${o.number}</b> ${esc(o.customer.name)} · <a href="tel:${esc(o.customer.phone)}">${esc(o.customer.phone)}</a></span><span class="actions"><span class="muted small">${o.cookieCount || o.quantity || 0} кол.</span><span class="pill ${esc(o.status)}">${esc(o.status)}</span></span></div>`);
+        r.onclick = e => { if (e.target.tagName !== 'A') { cal.month = new Date(d.getFullYear(), d.getMonth(), 1); cal.day = key; go('calendar'); } };
+        col.appendChild(r);
+      }
+      due.appendChild(col);
+    }
+    v.appendChild(dueBox);
+
     const box = h(`<div class="card card-pad"><div class="order-head" style="margin-bottom:12px"><h3 style="margin:0">Последни нарачки</h3><button class="btn btn-sm btn-outline">Сите нарачки</button></div><div class="rows"></div></div>`);
     box.querySelector('button').onclick = () => go('orders');
     const rows = box.querySelector('.rows');
@@ -128,6 +148,18 @@
 
   // ---------- Нарачки ----------
   const tally = arr => Object.entries(arr.reduce((m, n) => (m[n] = (m[n] || 0) + 1, m), {})).map(([n, c]) => `${n} × ${c}`).join(', ');
+  // Датум „потребно до“ (YYYY-MM-DD) → „18 дек. 2026“
+  // (не сите прелистувачи имаат македонски имиња на месеци – затоа рачно)
+  const MONTHS = ['јануари', 'февруари', 'март', 'април', 'мај', 'јуни', 'јули', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+  const DAYS = ['недела', 'понеделник', 'вторник', 'среда', 'четврток', 'петок', 'сабота'];
+  const fmtDay = (s, withDay) => {
+    const [y, m, d] = String(s || '').split('-').map(Number);
+    if (!y) return '—';
+    const wd = DAYS[new Date(y, m - 1, d).getDay()];
+    return `${withDay ? wd + ', ' : ''}${d} ${MONTHS[m - 1]} ${y}`;
+  };
+  const isoDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   function orders(v) {
     let filter = '';
     const sel = h(`<select><option value="">Сите статуси</option>${STATUSES.map(s => `<option>${s}</option>`).join('')}</select>`);
@@ -139,7 +171,70 @@
       rows.innerHTML = '';
       const list = [...D.orders].reverse().filter(o => !filter || o.status === filter);
       if (!list.length) rows.innerHTML = '<div class="card empty-state">Нема нарачки.</div>';
-      for (const o of list) {
+      for (const o of list) rows.appendChild(orderCard(o));
+    }
+    draw();
+  }
+
+  // ---------- Календар ----------
+  const cal = { month: null, day: null, hideCancelled: true };
+  function calendar(v) {
+    const today = isoDay(new Date());
+    if (!cal.month) { const n = new Date(); cal.month = new Date(n.getFullYear(), n.getMonth(), 1); }
+    if (!cal.day) cal.day = today;
+    const shown = o => !(cal.hideCancelled && o.status === 'откажана');
+    const byDay = {};
+    for (const o of D.orders) if (o.customer?.date && shown(o)) (byDay[o.customer.date] ||= []).push(o);
+    const noDate = D.orders.filter(o => !o.customer?.date && shown(o) && !['испорачана', 'откажана'].includes(o.status));
+
+    const head = h(`<div class="cal-head card">
+      <button class="icon-btn prev" aria-label="Претходен месец">‹</button>
+      <b class="cal-title"></b>
+      <button class="icon-btn next" aria-label="Следен месец">›</button>
+      <button class="btn btn-sm btn-outline today">Денес</button>
+      <label class="toggle small" style="margin-left:auto"><input type="checkbox" class="hc" ${cal.hideCancelled ? 'checked' : ''}> Скриј откажани</label>
+    </div>`);
+    const m = cal.month;
+    head.querySelector('.cal-title').textContent = `${MONTHS[m.getMonth()]} ${m.getFullYear()}`;
+    head.querySelector('.prev').onclick = () => { cal.month = new Date(m.getFullYear(), m.getMonth() - 1, 1); render(); };
+    head.querySelector('.next').onclick = () => { cal.month = new Date(m.getFullYear(), m.getMonth() + 1, 1); render(); };
+    head.querySelector('.today').onclick = () => { const n = new Date(); cal.month = new Date(n.getFullYear(), n.getMonth(), 1); cal.day = today; render(); };
+    head.querySelector('.hc').onchange = e => { cal.hideCancelled = e.target.checked; render(); };
+    v.appendChild(head);
+
+    const grid = h(`<div class="cal-grid card">${['Пон', 'Вто', 'Сре', 'Чет', 'Пет', 'Саб', 'Нед'].map(d => `<div class="cal-dow">${d}</div>`).join('')}</div>`);
+    const startPad = (m.getDay() + 6) % 7; // понеделник прв
+    const days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+    for (let i = 0; i < startPad; i++) grid.appendChild(h('<div class="cal-cell empty"></div>'));
+    for (let d = 1; d <= days; d++) {
+      const key = isoDay(new Date(m.getFullYear(), m.getMonth(), d));
+      const list = (byDay[key] || []).sort((a, b) => a.number - b.number);
+      const cookies = list.reduce((s, o) => s + (o.cookieCount || o.quantity || 0), 0);
+      const cell = h(`<button class="cal-cell${key === today ? ' is-today' : ''}${key === cal.day ? ' is-sel' : ''}${list.length ? ' has' : ''}">
+        <span class="cal-num">${d}</span>
+        ${list.length ? `<span class="cal-count">${list.length} ${list.length === 1 ? 'нарачка' : 'нарачки'}<small>${cookies} кол.</small></span>` : ''}
+        <span class="cal-chips">${list.slice(0, 3).map(o => `<span class="chip-o pill ${esc(o.status)}">#${o.number} ${esc(o.customer.name.split(' ')[0])}</span>`).join('')}${list.length > 3 ? `<span class="more">+${list.length - 3}</span>` : ''}</span>
+      </button>`);
+      cell.onclick = () => { cal.day = key; render(); document.getElementById('calDay')?.scrollIntoView({ behavior: 'smooth' }); };
+      grid.appendChild(cell);
+    }
+    v.appendChild(grid);
+
+    const sel = (byDay[cal.day] || []).sort((a, b) => a.number - b.number);
+    const dayBox = h(`<div id="calDay" style="margin-top:22px"><h2 style="font-size:1.7rem;margin:0 0 4px;text-transform:capitalize">${esc(fmtDay(cal.day, true))}${cal.day === today ? ' · денес' : ''}</h2>
+      <p class="muted small" style="margin:0 0 14px">${sel.length ? `${sel.length} ${sel.length === 1 ? 'нарачка' : 'нарачки'} · ${sel.reduce((s, o) => s + (o.cookieCount || o.quantity || 0), 0)} колачиња` : 'Нема нарачки за овој ден.'}</p><div class="rows"></div></div>`);
+    sel.forEach(o => dayBox.querySelector('.rows').appendChild(orderCard(o)));
+    v.appendChild(dayBox);
+
+    if (noDate.length) {
+      const nd = h(`<details class="card card-pad" style="margin-top:22px"><summary><b>Нарачки без датум (${noDate.length})</b> <span class="muted small">– купувачот не внел датум, договорете по телефон</span></summary><div class="rows" style="margin-top:14px"></div></details>`);
+      noDate.forEach(o => nd.querySelector('.rows').appendChild(orderCard(o)));
+      v.appendChild(nd);
+    }
+  }
+
+  // Картичка за една нарачка (се користи во Нарачки и Календар)
+  function orderCard(o) {
         const c = o.customer;
         const body = o.kind === 'custom'
           ? `<div><p style="margin:0 0 6px"><b>${esc(o.occasion)}</b> · <b>${o.quantity} колачиња</b></p>
@@ -158,7 +253,7 @@
           <div class="info-cols">
             <div><small>Клиент</small><b>${esc(c.name)}</b><br><a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>${c.email ? `<br><a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : ''}</div>
             <div><small>Преземање</small>${c.delivery === 'delivery' ? 'Достава' : 'Лично подигање'}${c.address ? `<br>${esc(c.address)}` : ''}</div>
-            <div><small>Потребно до</small>${esc(c.date || '—')}</div>
+            <div><small>Потребно до</small>${c.date ? `<b>${esc(fmtDay(c.date))}</b>` : '—'}</div>
             <div><small>Пакување</small>${o.packing === 'individual' ? 'Секое посебно' : 'Заедно во кутија'}</div>
           </div>
           ${body}
@@ -172,10 +267,7 @@
         });
         card.querySelector('.save')?.addEventListener('click', act(async () => { Object.assign(o, await api('PUT', `/api/admin/orders/${o.id}`, { total: card.querySelector('.price').value })); toast('Цената е зачувана'); }));
         card.querySelectorAll('.order-imgs img').forEach(i => i.onclick = () => SM.lightbox(i.src));
-        rows.appendChild(card);
-      }
-    }
-    draw();
+        return card;
   }
 
   // ---------- Колачиња ----------

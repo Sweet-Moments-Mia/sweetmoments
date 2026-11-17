@@ -133,7 +133,7 @@ const Shop = (() => {
       <div class="stars" aria-label="${r.rating} од 5">${SM.stars(r.rating)}</div>
       <p>${esc(r.text)}</p>
       ${r.photo ? `<img src="${esc(r.photo)}" alt="" loading="lazy" onclick="SM.lightbox(this.src)">` : ''}
-      <div class="who"><span class="avatar">${esc((r.name || '?').trim()[0].toUpperCase())}</span><div><b>${esc(r.name)}</b><span>${new Date(r.createdAt).toLocaleDateString('mk-MK')}</span></div></div>
+      <div class="who"><span class="avatar">${esc((r.name || '?').trim()[0].toUpperCase())}</span><div><b>${esc(r.name)}</b><span>${(d => `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`)(new Date(r.createdAt))}</span></div></div>
     </article>`;
   }
 

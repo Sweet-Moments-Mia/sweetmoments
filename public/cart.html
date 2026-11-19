@@ -33,7 +33,7 @@
           <label>Име и презиме *<input name="name" required maxlength="100" autocomplete="name"></label>
           <label>Телефон *<input name="phone" required maxlength="40" type="tel" autocomplete="tel" placeholder="07X XXX XXX"></label>
         </div>
-        <label>Е-пошта <small>(опционално)</small><input name="email" type="email" maxlength="120" autocomplete="email"></label>
+        <label>Е-пошта <small>(препорачано – за потврда и известувања за нарачката)</small><input name="email" type="email" maxlength="120" autocomplete="email" placeholder="ime@primer.com"></label>
         <div class="form-row">
           <label>Преземање
             <select name="delivery"><option value="pickup">Лично подигање</option><option value="delivery">Достава</option></select>
@@ -160,7 +160,7 @@ SM.ready.then(d => {
       const r = await SM.postJSON('/api/orders', body);
       SM.setCart([]);
       document.getElementById('root').innerHTML = SM.successHtml('Ви благодариме за нарачката!',
-        `<p>Вашата нарачка <b>#${r.number}</b> е примена. Вкупно: <b>${money(r.total)}</b></p>`, s);
+        `<p>Вашата нарачка <b>#${r.number}</b> е примена. Вкупно: <b>${money(r.total)}</b></p>${r.mailed ? `<p class="muted">Ви испративме потврда на <b>${esc(body.email)}</b> (проверете и Spam).</p>` : ''}`, s);
       scrollTo(0, 0);
     } catch (err) {
       SM.toast(err.message, true);

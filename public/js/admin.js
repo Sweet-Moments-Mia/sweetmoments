@@ -248,8 +248,9 @@
         const card = h(`<div class="card row-card">
           <div class="order-head">
             <div class="actions"><span class="order-no">#${o.number}</span><span class="pill kind">${o.kind === 'custom' ? 'Сопствен дизајн' : 'Кошничка'}</span><span class="pill ${esc(o.status)}">${esc(o.status)}</span><span class="muted small">${date(o.createdAt)}</span></div>
-            <div class="actions"><select class="st">${STATUSES.map(s => `<option ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select><button class="btn btn-sm btn-ghost del danger">Избриши</button></div>
+            <div class="actions">${c.email ? `<label class="toggle small" title="При промена на статусот купувачот добива мејл"><input type="checkbox" class="nt" checked> Мејл до купувачот</label>` : '<span class="muted small" title="Купувачот не оставил е-пошта">без е-пошта</span>'}<select class="st">${STATUSES.map(s => `<option ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select><button class="btn btn-sm btn-ghost del danger">Избриши</button></div>
           </div>
+          ${o.mails?.length ? `<div class="muted small">✉️ Испратени мејлови до купувачот: ${o.mails.map(m => `<b>${esc(m.tag)}</b> (${date(m.at)})`).join(' · ')}</div>` : ''}
           <div class="info-cols">
             <div><small>Клиент</small><b>${esc(c.name)}</b><br><a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>${c.email ? `<br><a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : ''}</div>
             <div><small>Преземање</small>${c.delivery === 'delivery' ? 'Достава' : 'Лично подигање'}${c.address ? `<br>${esc(c.address)}` : ''}</div>
@@ -260,7 +261,14 @@
           ${c.note ? `<div class="notice">${I.info}<span style="white-space:pre-wrap">${esc(c.note)}</span></div>` : ''}
           ${o.kind === 'custom' ? `<div class="actions"><label class="toggle">Договорена цена <input class="price" type="number" min="0" style="width:140px" value="${o.total ?? ''}"></label><button class="btn btn-sm save">Зачувај цена</button></div>` : ''}
         </div>`);
-        card.querySelector('.st').onchange = act(async e => { Object.assign(o, await api('PUT', `/api/admin/orders/${o.id}`, { status: e.target.value })); render(); });
+        card.querySelector('.st').onchange = act(async e => {
+          const notify = card.querySelector('.nt') ? card.querySelector('.nt').checked : false;
+          const r = await api('PUT', `/api/admin/orders/${o.id}`, { status: e.target.value, notify });
+          const { mailed, ...rest } = r; Object.assign(o, rest);
+          toast(mailed ? `Статусот е „${o.status}“ · мејл испратен до купувачот` : `Статусот е „${o.status}“`);
+          render();
+          if (mailed) setTimeout(() => reload().catch(() => {}), 2500); // да се прикаже записот за испратениот мејл
+        });
         card.querySelector('.del').onclick = act(async () => {
           if (!confirm(`Да се избрише нарачка #${o.number}? Ова не може да се врати.`)) return;
           await api('DELETE', `/api/admin/orders/${o.id}`); D.orders = D.orders.filter(x => x !== o); render();

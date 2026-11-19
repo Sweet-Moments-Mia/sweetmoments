@@ -54,7 +54,7 @@
         <label>Телефон *<input name="phone" required type="tel" maxlength="40" autocomplete="tel" placeholder="07X XXX XXX"></label>
       </div>
       <div class="form-row">
-        <label>Е-пошта <small>(опционално)</small><input name="email" type="email" maxlength="120" autocomplete="email"></label>
+        <label>Е-пошта <small>(препорачано – за потврда и известувања за нарачката)</small><input name="email" type="email" maxlength="120" autocomplete="email" placeholder="ime@primer.com"></label>
         <label>Потребно до датум<input name="date" type="date"></label>
       </div>
       <div class="form-row">
@@ -112,7 +112,8 @@ form.onsubmit = async e => {
   try {
     const r = await SM.postForm('/api/custom-orders', fd);
     const d = await SM.ready;
-    document.getElementById('root').innerHTML = SM.successHtml('Барањето е испратено!', `<p>Број на барање: <b>#${r.number}</b></p>`, d.settings);
+    const em = SM.esc(fd.get('email') || '');
+    document.getElementById('root').innerHTML = SM.successHtml('Барањето е испратено!', `<p>Број на барање: <b>#${r.number}</b></p><p>Во најкраток можен рок ќе ви пишеме или ќе ве повикаме со понуда.</p>${r.mailed ? `<p class="muted">Ви испративме потврда на <b>${em}</b> (проверете и Spam).</p>` : ''}`, d.settings);
     scrollTo(0, 0);
   } catch (err) {
     SM.toast(err.message, true);

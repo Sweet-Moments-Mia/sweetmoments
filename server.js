@@ -396,18 +396,96 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
 const BREVO_KEY = process.env.BREVO_API_KEY || '';
 const mailEnabled = () => !!(BREVO_KEY || mailer);
 const notifyTo = () => db.settings.orderEmail || db.admin.email;
-async function sendMail(to, subject, text) {
+async function sendMail(to, subject, text, html, replyTo) {
   if (BREVO_KEY) {
-    const from = process.env.MAIL_FROM || to;
-    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const from = process.env.MAIL_FROM || notifyTo() || to;
+    const body = { sender: { name: 'Sweet Moments', email: from }, to: [{ email: to }], subject, textContent: text };
+    if (html) body.htmlContent = html;
+    if (replyTo) body.replyTo = { email: replyTo };
+    const r = await fetch(process.env.BREVO_API_URL || 'https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ sender: { name: 'Sweet Moments', email: from }, to: [{ email: to }], subject, textContent: text })
+      body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error(`Brevo ${r.status}: ${(await r.text()).slice(0, 200)}`);
     return;
   }
-  if (mailer) await mailer.sendMail({ from: `"Sweet Moments" <${process.env.SMTP_USER}>`, to, subject, text });
+  if (mailer) await mailer.sendMail({ from: `"Sweet Moments" <${process.env.SMTP_USER}>`, to, subject, text, html, replyTo });
+}
+
+// ---------- Мејлови до купувачот ----------
+const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const MK_MONTHS = ['јануари', 'февруари', 'март', 'април', 'мај', 'јуни', 'јули', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+const fmtDay = s => { const [y, m, d] = String(s || '').split('-').map(Number); return y ? `${d} ${MK_MONTHS[m - 1]} ${y}` : ''; };
+const moneyTxt = n => `${String(Math.round(Number(n || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} ${db.settings.currency || 'ден'}`;
+const validMail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || ''));
+const siteUrl = req => `${req.protocol}://${req.get('host')}`;
+
+// Состав на нарачката (за мејл)
+function orderSummary(o) {
+  if (o.kind === 'custom') {
+    return [`Прилика: ${o.occasion}`, `Количина: ${o.quantity} колачиња`, `Опис: ${o.design}`, o.cookieText && `Текст на колачињата: ${o.cookieText}`]
+      .filter(Boolean);
+  }
+  const rows = o.lines.map(l => `${l.name}${l.design ? ' – ' + l.design : ''} × ${l.qty} = ${moneyTxt(l.sum)}${l.mixed ? ' (мешан пакет – дизајните ги бираме ние)' : ''}`);
+  if (o.discount) rows.push(`Попуст ${o.discountPct}%: −${moneyTxt(o.discount)}`);
+  if (o.wrapFee) rows.push(`Поединечно пакување: ${moneyTxt(o.wrapFee)}`);
+  rows.push(`Вкупно: ${moneyTxt(o.total)}`);
+  return rows;
+}
+
+// Пораки по статус (за мејлот при промена во админ)
+const STATUS_MAIL = {
+  'потврдена': o => ({ title: o.kind === 'custom' ? 'Вашата нарачка со сопствен дизајн е потврдена' : 'Вашата нарачка е потврдена',
+    text: `Ја потврдивме вашата нарачка #${o.number}.${o.kind === 'custom' && o.total != null ? ` Договорена цена: ${moneyTxt(o.total)}.` : ''} Почнуваме со подготовка.` }),
+  'во изработка': o => ({ title: 'Вашите колачиња се во изработка', text: `Колачињата од нарачка #${o.number} се украсуваат токму сега. 🍪` }),
+  'готова': o => ({ title: 'Вашата нарачка е готова', text: o.customer.delivery === 'delivery'
+    ? `Нарачката #${o.number} е готова и наскоро тргнува на достава. Плаќањето е при преземање.`
+    : `Нарачката #${o.number} е готова за подигање. Плаќањето е при преземање.` }),
+  'испорачана': o => ({ title: 'Ви благодариме!', text: `Нарачката #${o.number} е предадена. Ви благодариме што нè избравте – уживајте во слатките моменти! Ќе ни биде мило ако оставите рецензија.`, review: true }),
+  'откажана': o => ({ title: 'Нарачката е откажана', text: `Нарачката #${o.number} е откажана. Ако ова е грешка или имате прашања, слободно јавете ни се.` })
+};
+
+function customerEmail(o, { title, text, extra = [], review = false }, base) {
+  const s = db.settings;
+  const contact = [s.phone && `Телефон: ${s.phone}`, (s.email || notifyTo()) && `Е-пошта: ${s.email || notifyTo()}`].filter(Boolean);
+  const summary = orderSummary(o);
+  const pickup = o.customer.delivery === 'delivery' ? `Достава${o.customer.address ? ': ' + o.customer.address : ''}` : 'Лично подигање';
+  const when = fmtDay(o.customer.date);
+  const plain = [`Здраво ${o.customer.name},`, '', text, ...extra, '', `Нарачка #${o.number}`, ...summary.map(r => '• ' + r),
+    `Преземање: ${pickup}`, when && `Потребно до: ${when}`, '', ...contact, '', 'Секој момент заслужува нешто слатко,', 'Sweet Moments']
+    .filter(x => x !== undefined && x !== false && x !== null).join('\n');
+  const li = summary.map(r => `<li style="margin:3px 0">${escHtml(r)}</li>`).join('');
+  const html = `<!doctype html><html><body style="margin:0;background:#f6eae0;font-family:Arial,Helvetica,sans-serif;color:#2e2023">
+  <div style="max-width:560px;margin:0 auto;padding:24px 16px">
+    <div style="text-align:center;padding:10px 0 18px"><span style="font-family:Georgia,serif;font-size:34px;color:#8e1f2e;font-style:italic">Sweet</span><br><span style="font-family:Georgia,serif;letter-spacing:6px;color:#8e1f2e;font-size:13px">moments</span></div>
+    <div style="background:#fffcf9;border:1px solid #e8d8cc;border-radius:14px;padding:26px">
+      <h1 style="font-family:Georgia,serif;color:#5e1420;font-size:24px;margin:0 0 12px">${escHtml(title)}</h1>
+      <p style="margin:0 0 10px">Здраво ${escHtml(o.customer.name)},</p>
+      <p style="margin:0 0 10px;line-height:1.55">${escHtml(text)}</p>
+      ${extra.map(e => `<p style="margin:0 0 10px;line-height:1.55">${escHtml(e)}</p>`).join('')}
+      <div style="background:#f6eae0;border-radius:10px;padding:14px 16px;margin:16px 0">
+        <b>Нарачка #${o.number}</b>
+        <ul style="padding-left:18px;margin:8px 0">${li}</ul>
+        <div style="font-size:14px;color:#7d6a68">Преземање: ${escHtml(pickup)}${when ? `<br>Потребно до: ${escHtml(when)}` : ''}</div>
+      </div>
+      ${review && base ? `<p style="text-align:center;margin:18px 0"><a href="${escHtml(base)}/reviews.html" style="background:#8e1f2e;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:bold">Остави рецензија</a></p>` : ''}
+      <p style="margin:14px 0 0;font-size:14px;color:#7d6a68">${contact.map(escHtml).join('<br>')}</p>
+    </div>
+    <p style="text-align:center;font-size:12px;color:#7d6a68;margin:18px 0 0">Секој момент заслужува нешто слатко · ${escHtml(base || '')}</p>
+  </div></body></html>`;
+  return { subject: `${title} – #${o.number} · Sweet Moments`, text: plain, html };
+}
+
+// Праќа мејл до купувачот (ако оставил е-пошта) и бележи во нарачката
+function mailCustomer(o, content, base, tag) {
+  const to = o.customer?.email;
+  if (!mailEnabled() || !validMail(to)) return false;
+  const m = customerEmail(o, content, base);
+  sendMail(to, m.subject, m.text, m.html, db.settings.email || notifyTo())
+    .then(() => { (o.mails ||= []).push({ tag, at: Date.now() }); save(); })
+    .catch(e => console.error('Мејл до купувач не е испратен:', e.message));
+  return true;
 }
 function notify(subject, lines) {
   if (!mailEnabled() || !notifyTo()) return;
@@ -484,7 +562,12 @@ app.post('/api/orders', rateLimit(10, 60 * 60 * 1000), (req, res) => {
       discount && `Попуст ${discountPct}%: −${discount}`,
       wrapFee && `Доплата за пакување: ${wrapFee}`, `ВКУПНО: ${order.total} ${db.settings.currency}`
     ]);
-    res.json({ ok: true, number: order.number, total: order.total });
+    const mailed = mailCustomer(order, {
+      title: 'Вашата нарачка е примена',
+      text: 'Ви благодариме! Вашата нарачка е примена. Наскоро ќе ве контактираме по телефон за да ја потврдиме и да се договориме за преземањето.',
+      extra: ['Плаќањето е при преземање.' + (customer.delivery === 'delivery' ? ' Испораката се наплаќа посебно – цената ја договараме по телефон.' : '')]
+    }, siteUrl(req), 'примена');
+    res.json({ ok: true, number: order.number, total: order.total, mailed });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
@@ -509,7 +592,12 @@ app.post('/api/custom-orders', rateLimit(10, 60 * 60 * 1000), upload.array('imag
       `Пакување: ${order.packing === 'individual' ? 'Секое посебно' : 'Заедно во кутија'}`,
       order.images.length && `Прикачени слики: ${order.images.length} (види во админ панелот)`
     ]);
-    res.json({ ok: true, number: order.number });
+    const mailed = mailCustomer(order, {
+      title: 'Вашето барање е примено',
+      text: 'Ви благодариме за барањето за колачиња по ваш дизајн! Во најкраток можен рок ќе ви пишеме или ќе ве повикаме со понуда и цена.',
+      extra: ['Со изработката почнуваме откако заедно ќе ги потврдиме деталите и цената.']
+    }, siteUrl(req), 'примено барање');
+    res.json({ ok: true, number: order.number, mailed });
   } catch (e) {
     (req.files || []).forEach(f => removeUpload(fileUrl(f)));
     res.status(400).json({ error: e.message });
@@ -748,10 +836,16 @@ app.delete('/api/admin/reviews/:id', (req, res) => {
 app.put('/api/admin/orders/:id', (req, res) => {
   const o = db.orders.find(x => x.id === req.params.id);
   if (!o) return res.status(404).json({ error: 'Не постои.' });
+  const before = o.status;
   if ('status' in req.body) o.status = str(req.body.status, 30);
   if ('total' in req.body) o.total = req.body.total === '' ? null : num(req.body.total);
   if ('adminNote' in req.body) o.adminNote = str(req.body.adminNote, 2000);
-  save(); res.json(o);
+  // Мејл до купувачот при промена на статус (ако е штиклирано во админ)
+  let mailed = false;
+  if (o.status !== before && req.body.notify !== false && STATUS_MAIL[o.status]) {
+    mailed = mailCustomer(o, STATUS_MAIL[o.status](o), siteUrl(req), o.status);
+  }
+  save(); res.json({ ...o, mailed });
 });
 app.delete('/api/admin/orders/:id', (req, res) => {
   const o = db.orders.find(x => x.id === req.params.id);
